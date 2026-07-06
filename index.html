@@ -7,27 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 
-<!-- Firebase (compat SDK: nessun build tool richiesto) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-<!-- React -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <style>
   :root{
-    --ink:#12242B;
-    --teal:#0B6E67;
-    --teal-dark:#084F4A;
-    --bg:#F5F7F6;
-    --panel:#FFFFFF;
-    --border:#E1E6E4;
-    --amber:#C97A2E;
-    --danger:#B3432B;
-    --muted:#5C6D6A;
+    --ink:#12242B; --teal:#0B6E67; --teal-dark:#084F4A; --bg:#F5F7F6;
+    --panel:#FFFFFF; --border:#E1E6E4; --amber:#C97A2E; --danger:#B3432B; --muted:#5C6D6A;
   }
   *{box-sizing:border-box;}
   body{ margin:0; font-family:'Inter',sans-serif; background:var(--bg); color:var(--ink); }
@@ -41,6 +32,8 @@
   .tabs{ display:flex; gap:4px; flex-wrap:wrap; }
   .tab{ padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:500; color:var(--muted); font-size:14px; }
   .tab.active{ background:var(--teal); color:#fff; }
+  .topbar-right{ display:flex; align-items:center; gap:10px; }
+  .link-btn{ background:none; border:none; color:var(--teal); font-weight:600; font-size:13px; cursor:pointer; padding:6px 4px; }
   .container{ max-width:1040px; margin:0 auto; padding:28px; }
   .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
   label{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:6px; }
@@ -56,10 +49,10 @@
   .btn.small{ padding:6px 12px; font-size:12px; }
   .error{ background:#FBEAE5; border:1px solid #EAC3B5; color:var(--danger); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; }
   .info{ background:#EAF3F2; border:1px solid #C7E0DD; color:var(--teal-dark); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; }
+  .success{ background:#EAF6E9; border:1px solid #BFE0C8; color:#1F6B3A; padding:12px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; }
   .auth-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); }
   .auth-card{ width:380px; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:32px; }
-  .auth-switch{ text-align:center; margin-top:16px; font-size:13px; color:var(--muted); }
-  .auth-switch a{ color:var(--teal); cursor:pointer; font-weight:600; text-decoration:none; }
+  .auth-note{ text-align:center; margin-top:16px; font-size:13px; color:var(--muted); }
 
   .dental-chart{ text-align:center; }
   .arch{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
@@ -76,6 +69,7 @@
   .role-pill{ font-size:11px; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   .role-pill.admin{ background:var(--amber); color:#fff; }
   .role-pill.user{ background:var(--border); color:var(--muted); }
+  .device-tag{ display:inline-block; background:#EAF3F2; color:var(--teal-dark); padding:4px 10px; border-radius:6px; font-size:13px; margin:0 6px 6px 0; }
 
   .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
   .print-area{ display:none; }
@@ -110,7 +104,6 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-// Listino di esempio, usato solo per inizializzare Firestore la prima volta (pulsante nel pannello Admin)
 const SEED_PRICE_LIST = [
   { category: "Protesi fissa", name: "Corona in ceramica integrale", price: 180 },
   { category: "Protesi fissa", name: "Corona in metallo-ceramica", price: 140 },
@@ -127,6 +120,31 @@ const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
 const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
 const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
 const LOWER_RIGHT = [48,47,46,45,44,43,42,41];
+
+function generatePassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+async function createUserAsAdmin(email, password, role) {
+  let secondaryApp;
+  try {
+    secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary-" + Date.now());
+    const secondaryAuth = secondaryApp.auth();
+    const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+    await db.collection("users").doc(cred.user.uid).set({
+      email, role, createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await secondaryAuth.signOut();
+    await secondaryApp.delete();
+    return { success: true };
+  } catch (err) {
+    if (secondaryApp) { try { await secondaryApp.delete(); } catch(e){} }
+    return { success: false, error: err.code };
+  }
+}
 
 function DentalChart({ selected, onToggle }) {
   const renderArch = (left, right) => (
@@ -149,7 +167,7 @@ function DentalChart({ selected, onToggle }) {
 function traduciErrore(code) {
   const map = {
     "auth/invalid-email": "Email non valida.",
-    "auth/user-not-found": "Utente non trovato.",
+    "auth/user-not-found": "Utente non trovato. Chiedi all'amministratore di crearti un account.",
     "auth/wrong-password": "Password errata.",
     "auth/email-already-in-use": "Email già registrata.",
     "auth/weak-password": "La password deve avere almeno 6 caratteri.",
@@ -159,7 +177,6 @@ function traduciErrore(code) {
 }
 
 function AuthScreen() {
-  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -169,17 +186,7 @@ function AuthScreen() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      if (mode === "login") {
-        await auth.signInWithEmailAndPassword(email, password);
-      } else {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        // Crea il profilo utente in Firestore (ruolo predefinito: "user")
-        await db.collection("users").doc(cred.user.uid).set({
-          email: cred.user.email,
-          role: "user",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      }
+      await auth.signInWithEmailAndPassword(email, password);
     } catch (err) {
       setError(traduciErrore(err.code));
     }
@@ -193,25 +200,63 @@ function AuthScreen() {
           <div className="brand-mark">G</div>
           <div className="brand-name">GesPro</div>
         </div>
-        <h2 style={{textAlign:"center", fontSize:18}}>{mode === "login" ? "Accedi" : "Crea un account"}</h2>
+        <h2 style={{textAlign:"center", fontSize:18}}>Accedi</h2>
         {error && <div className="error">{error}</div>}
         <form onSubmit={submit}>
           <label>Email</label>
           <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required style={{marginBottom:14}} />
           <label>Password</label>
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6} style={{marginBottom:20}} />
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required style={{marginBottom:20}} />
           <button className="btn" type="submit" style={{width:"100%"}} disabled={loading}>
-            {loading ? "Attendere..." : (mode === "login" ? "Accedi" : "Registrati")}
+            {loading ? "Attendere..." : "Accedi"}
           </button>
         </form>
-        <div className="auth-switch">
-          {mode === "login" ? (
-            <span>Non hai un account? <a onClick={()=>{setMode("register"); setError("");}}>Registrati</a></span>
-          ) : (
-            <span>Hai già un account? <a onClick={()=>{setMode("login"); setError("");}}>Accedi</a></span>
-          )}
-        </div>
+        <div className="auth-note">Non hai un account? Comunica la tua email all'amministratore, che te ne creerà uno.</div>
       </div>
+    </div>
+  );
+}
+
+function ChangePassword({ onClose }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      const user = auth.currentUser;
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, current);
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(next);
+      setOk(true);
+    } catch (err) {
+      setError(traduciErrore(err.code));
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="card">
+      <h3>Cambia password</h3>
+      {ok ? (
+        <div className="success">Password aggiornata correttamente. <a style={{cursor:"pointer", fontWeight:600}} onClick={onClose}>Chiudi</a></div>
+      ) : (
+        <form onSubmit={submit}>
+          {error && <div className="error">{error}</div>}
+          <div className="row">
+            <div><label>Password attuale</label><input type="password" value={current} onChange={e=>setCurrent(e.target.value)} required /></div>
+            <div><label>Nuova password</label><input type="password" value={next} onChange={e=>setNext(e.target.value)} required minLength={6} /></div>
+          </div>
+          <div style={{display:"flex", gap:10}}>
+            <button className="btn" type="submit" disabled={loading}>{loading ? "Attendere..." : "Aggiorna password"}</button>
+            <button className="btn secondary" type="button" onClick={onClose}>Annulla</button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
@@ -301,25 +346,21 @@ function NewPrescription({ user, priceList, onSaved }) {
           <div>
             <label>Dispositivo</label>
             <select value={selectedItem} onChange={e=>setSelectedItem(e.target.value)}>
-              {currentCategoryItems.map(i => <option key={i.id} value={i.name}>{i.name} — €{i.price}</option>)}
+              {currentCategoryItems.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
             </select>
           </div>
         </div>
         <button className="btn secondary" onClick={addLine} type="button">+ Aggiungi alla prescrizione</button>
 
         {lines.length > 0 && (
-          <table style={{marginTop:18}}>
-            <thead><tr><th>Categoria</th><th>Dispositivo</th><th>Prezzo</th><th></th></tr></thead>
-            <tbody>
-              {lines.map((l, idx) => (
-                <tr key={idx}>
-                  <td>{l.category}</td><td>{l.name}</td><td className="mono">€{l.price.toFixed(2)}</td>
-                  <td><button className="btn danger" onClick={()=>removeLine(idx)} type="button">Rimuovi</button></td>
-                </tr>
-              ))}
-              <tr className="total-row"><td colSpan="2">Totale</td><td className="mono">€{total.toFixed(2)}</td><td></td></tr>
-            </tbody>
-          </table>
+          <div style={{marginTop:18}}>
+            {lines.map((l, idx) => (
+              <span key={idx} className="device-tag">
+                {l.name}
+                <span style={{marginLeft:8, cursor:"pointer", fontWeight:700}} onClick={()=>removeLine(idx)}>×</span>
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
@@ -340,13 +381,9 @@ function NewPrescription({ user, priceList, onSaved }) {
           {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessun dente selezionato</em>}
         </div>
         <h3 style={{marginTop:20}}>Dispositivi richiesti</h3>
-        <table>
-          <thead><tr><th>Categoria</th><th>Dispositivo</th><th>Prezzo</th></tr></thead>
-          <tbody>
-            {lines.map((l, idx) => (<tr key={idx}><td>{l.category}</td><td>{l.name}</td><td>€{l.price.toFixed(2)}</td></tr>))}
-            <tr className="total-row"><td colSpan="2">Totale</td><td>€{total.toFixed(2)}</td></tr>
-          </tbody>
-        </table>
+        <ul>
+          {lines.map((l, idx) => (<li key={idx}>{l.name}</li>))}
+        </ul>
         <div style={{marginTop:60}}>_____________________<br/><small>Firma</small></div>
       </div>
     </div>
@@ -366,14 +403,13 @@ function PrescriptionList({ user }) {
   return (
     <div className="card">
       <table>
-        <thead><tr><th>Data</th><th>Paziente</th><th>Dispositivi</th><th>Totale</th></tr></thead>
+        <thead><tr><th>Data</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
         <tbody>
           {items.map(p => (
             <tr key={p.id}>
               <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
               <td>{p.patient.nome} {p.patient.cognome}</td>
               <td>{p.lines.map(l=>l.name).join(", ")}</td>
-              <td className="mono">€{p.total.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -382,7 +418,6 @@ function PrescriptionList({ user }) {
   );
 }
 
-// ============ PANNELLO AMMINISTRAZIONE ============
 function AdminPriceList({ priceList, reload }) {
   const categories = [...new Set(priceList.map(i => i.category))];
   const [form, setForm] = useState({ category:"", name:"", price:"" });
@@ -410,6 +445,7 @@ function AdminPriceList({ priceList, reload }) {
   return (
     <div className="card">
       <h3>Listino prezzi</h3>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Visibile solo a te. Gli utenti normali vedono solo il nome dei dispositivi, mai il prezzo.</p>
       {priceList.length === 0 && (
         <div className="info">Il listino è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un listino di esempio</a>, poi modifica liberamente le voci.</div>
       )}
@@ -470,6 +506,11 @@ function AdminAllPrescriptions() {
 
 function AdminUsers({ currentUid }) {
   const [users, setUsers] = useState(null);
+  const [form, setForm] = useState({ email:"", role:"user" });
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const [created, setCreated] = useState(null);
+
   const load = async () => {
     const snap = await db.collection("users").orderBy("createdAt", "desc").get();
     setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -482,29 +523,73 @@ function AdminUsers({ currentUid }) {
     load();
   };
 
+  const addUser = async () => {
+    setError(""); setCreated(null);
+    if (!form.email) { setError("Inserisci un'email."); return; }
+    setCreating(true);
+    const password = generatePassword();
+    const result = await createUserAsAdmin(form.email, password, form.role);
+    if (result.success) {
+      setCreated({ email: form.email, password });
+      setForm({ email:"", role:"user" });
+      load();
+    } else {
+      setError(traduciErrore(result.error));
+    }
+    setCreating(false);
+  };
+
   if (users === null) return <div className="empty">Caricamento...</div>;
   return (
-    <div className="card">
-      <h3>Utenti registrati</h3>
-      <table>
-        <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
-        <tbody>
-          {users.map(u => (
-            <tr key={u.id}>
-              <td>{u.email}</td>
-              <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
-              <td>{u.createdAt ? new Date(u.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
-              <td>
-                {u.id !== currentUid && (
-                  <button className="btn secondary small" onClick={()=>toggleRole(u)} type="button">
-                    {u.role === "admin" ? "Rendi utente normale" : "Rendi amministratore"}
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      <div className="card">
+        <h3>Crea nuovo utente</h3>
+        {error && <div className="error">{error}</div>}
+        {created && (
+          <div className="success">
+            Utente creato. Comunica queste credenziali a <strong>{created.email}</strong>:<br/>
+            Email: <span className="mono">{created.email}</span><br/>
+            Password temporanea: <span className="mono">{created.password}</span><br/>
+            <small>Consiglia alla persona di cambiarla dopo il primo accesso (menu "Cambia password" in alto).</small>
+          </div>
+        )}
+        <div className="row3">
+          <div><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="collega@esempio.it" /></div>
+          <div>
+            <label>Ruolo</label>
+            <select value={form.role} onChange={e=>setForm({...form, role:e.target.value})}>
+              <option value="user">Utente normale</option>
+              <option value="admin">Amministratore</option>
+            </select>
+          </div>
+          <button className="btn" style={{height:42, alignSelf:"end"}} onClick={addUser} disabled={creating} type="button">
+            {creating ? "Creazione..." : "+ Crea utente"}
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Utenti registrati</h3>
+        <table>
+          <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u.id}>
+                <td>{u.email}</td>
+                <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
+                <td>{u.createdAt ? new Date(u.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
+                <td>
+                  {u.id !== currentUid && (
+                    <button className="btn secondary small" onClick={()=>toggleRole(u)} type="button">
+                      {u.role === "admin" ? "Rendi utente normale" : "Rendi amministratore"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -525,13 +610,13 @@ function AdminPanel({ user, priceList, reloadPriceList }) {
   );
 }
 
-// ============ APP PRINCIPALE ============
 function App() {
   const [user, setUser] = useState(undefined);
   const [profile, setProfile] = useState(null);
   const [tab, setTab] = useState("new");
   const [refreshKey, setRefreshKey] = useState(0);
   const [priceList, setPriceList] = useState([]);
+  const [showChangePw, setShowChangePw] = useState(false);
 
   const loadPriceList = async () => {
     const snap = await db.collection("priceList").orderBy("category").get();
@@ -566,13 +651,17 @@ function App() {
           {isAdmin && <span className="badge">Admin</span>}
         </div>
         <div className="tabs">
-          <div className={"tab" + (tab==="new" ? " active" : "")} onClick={()=>setTab("new")}>Nuova prescrizione</div>
-          <div className={"tab" + (tab==="list" ? " active" : "")} onClick={()=>{setTab("list"); setRefreshKey(k=>k+1);}}>Elenco prescrizioni</div>
-          {isAdmin && <div className={"tab" + (tab==="admin" ? " active" : "")} onClick={()=>setTab("admin")}>Amministrazione</div>}
+          <div className={"tab" + (tab==="new" ? " active" : "")} onClick={()=>{setTab("new"); setShowChangePw(false);}}>Nuova prescrizione</div>
+          <div className={"tab" + (tab==="list" ? " active" : "")} onClick={()=>{setTab("list"); setRefreshKey(k=>k+1); setShowChangePw(false);}}>Elenco prescrizioni</div>
+          {isAdmin && <div className={"tab" + (tab==="admin" ? " active" : "")} onClick={()=>{setTab("admin"); setShowChangePw(false);}}>Amministrazione</div>}
         </div>
-        <button className="btn secondary" onClick={()=>auth.signOut()}>Esci</button>
+        <div className="topbar-right">
+          <button className="link-btn" onClick={()=>setShowChangePw(v=>!v)}>Cambia password</button>
+          <button className="btn secondary" onClick={()=>auth.signOut()}>Esci</button>
+        </div>
       </div>
       <div className="container">
+        {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
         {tab === "new" && <NewPrescription user={user} priceList={priceList} onSaved={()=>{ setTab("list"); setRefreshKey(k=>k+1); }} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
         {tab === "admin" && isAdmin && <AdminPanel user={user} priceList={priceList} reloadPriceList={loadPriceList} />}
