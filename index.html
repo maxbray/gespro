@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GesPro — Prescrizioni odontotecniche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK: nessun build tool richiesto) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- React -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  :root{
+    --ink:#12242B;
+    --teal:#0B6E67;
+    --teal-dark:#084F4A;
+    --bg:#F5F7F6;
+    --panel:#FFFFFF;
+    --border:#E1E6E4;
+    --amber:#C97A2E;
+    --danger:#B3432B;
+    --muted:#5C6D6A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  h1,h2,h3{ font-family:'Fraunces',serif; font-weight:600; margin:0 0 8px 0;}
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px; background:var(--panel); border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;background:var(--teal);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Fraunces',serif;font-weight:600;
+  }
+  .brand-name{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; letter-spacing:.2px;}
+  .tabs{ display:flex; gap:4px; }
+  .tab{
+    padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:500; color:var(--muted); font-size:14px;
+  }
+  .tab.active{ background:var(--teal); color:#fff; }
+  .container{ max-width:980px; margin:0 auto; padding:28px; }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px;
+  }
+  label{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  input, select{
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px;
+    font-family:'Inter',sans-serif; background:#fff; color:var(--ink);
+  }
+  input:focus, select:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600; font-size:14px;
+    background:var(--teal); color:#fff; transition:background .15s;
+  }
+  .btn:hover{ background:var(--teal-dark); }
+  .btn.secondary{ background:transparent; color:var(--teal); border:1px solid var(--teal); }
+  .btn.secondary:hover{ background:#EAF3F2; }
+  .btn.danger{ background:transparent; color:var(--danger); border:1px solid var(--danger); padding:6px 10px; font-size:12px; }
+  .error{ background:#FBEAE5; border:1px solid #EAC3B5; color:var(--danger); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; }
+  .auth-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg);
+  }
+  .auth-card{ width:380px; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:32px; }
+  .auth-switch{ text-align:center; margin-top:16px; font-size:13px; color:var(--muted); }
+  .auth-switch a{ color:var(--teal); cursor:pointer; font-weight:600; text-decoration:none; }
+
+  /* Schema dentale */
+  .dental-chart{ text-align:center; }
+  .arch{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .tooth{
+    width:34px; height:34px; border-radius:6px; border:1px solid var(--border); background:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; color:var(--muted); transition:all .1s;
+  }
+  .tooth:hover{ border-color:var(--teal); }
+  .tooth.selected{ background:var(--teal); color:#fff; border-color:var(--teal); }
+  .arch-label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+  .midline{ width:0; border-left:1px dashed var(--border); margin:0 4px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th{ text-align:left; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; padding:8px; border-bottom:1px solid var(--border); }
+  td{ padding:10px 8px; border-bottom:1px solid var(--border); }
+  .total-row td{ font-weight:700; border-bottom:none; font-family:'IBM Plex Mono',monospace; }
+
+  .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
+
+  .print-area{ display:none; }
+
+  @media print{
+    body *{ visibility:hidden; }
+    .print-area, .print-area *{ visibility:visible; }
+    .print-area{ display:block; position:absolute; top:0; left:0; width:100%; padding:20px; }
+    .print-header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:12px; margin-bottom:20px; }
+    .print-teeth{ display:flex; flex-wrap:wrap; gap:6px; }
+    .print-tooth{ border:1px solid #12242B; border-radius:4px; padding:4px 8px; font-family:monospace; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+  // ⚠️ Configurazione Firebase del progetto GesPro
+  const firebaseConfig = {
+    apiKey: "AIzaSyA92wczgjNxtfEh-k7kOE0_JJPVBHVncgI",
+    authDomain: "gespro-47a74.firebaseapp.com",
+    projectId: "gespro-47a74",
+    storageBucket: "gespro-47a74.firebasestorage.app",
+    messagingSenderId: "727377811525",
+    appId: "1:727377811525:web:ec01624effbee4e55c6b2c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+</script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ============ LISTINO (SEGNAPOSTO — sostituire con il listino reale) ============
+const PRICE_LIST = [
+  { category: "Protesi fissa", items: [
+    { name: "Corona in ceramica integrale", price: 180 },
+    { name: "Corona in metallo-ceramica", price: 140 },
+    { name: "Ponte 3 elementi", price: 420 },
+  ]},
+  { category: "Protesi mobile", items: [
+    { name: "Protesi totale superiore", price: 350 },
+    { name: "Protesi scheletrata", price: 480 },
+  ]},
+  { category: "Ortodonzia", items: [
+    { name: "Mascherina trasparente", price: 220 },
+    { name: "Apparecchio Herbst", price: 390 },
+  ]},
+  { category: "Bite / Occlusione", items: [
+    { name: "Bite in resina rigida", price: 120 },
+    { name: "Bite molle notturno", price: 90 },
+  ]},
+];
+
+// ============ SCHEMA DENTALE (numerazione FDI/ISO, adulto) ============
+const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
+const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
+const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
+const LOWER_RIGHT = [48,47,46,45,44,43,42,41];
+
+function DentalChart({ selected, onToggle }) {
+  const renderArch = (left, right) => (
+    <div className="arch">
+      {left.map(n => (
+        <div key={n} className={"tooth" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>{n}</div>
+      ))}
+      <div className="midline"></div>
+      {right.map(n => (
+        <div key={n} className={"tooth" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>{n}</div>
+      ))}
+    </div>
+  );
+  return (
+    <div className="dental-chart">
+      <div className="arch-label">Arcata superiore</div>
+      {renderArch(UPPER_RIGHT, UPPER_LEFT)}
+      <div className="arch-label" style={{marginTop:14}}>Arcata inferiore</div>
+      {renderArch(LOWER_RIGHT, LOWER_LEFT)}
+    </div>
+  );
+}
+
+// ============ LOGIN / REGISTRAZIONE ============
+function AuthScreen() {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      if (mode === "login") {
+        await auth.signInWithEmailAndPassword(email, password);
+      } else {
+        await auth.createUserWithEmailAndPassword(email, password);
+      }
+    } catch (err) {
+      setError(traduciErrore(err.code));
+    }
+    setLoading(false);
+  };
+
+  const traduciErrore = (code) => {
+    const map = {
+      "auth/invalid-email": "Email non valida.",
+      "auth/user-not-found": "Utente non trovato.",
+      "auth/wrong-password": "Password errata.",
+      "auth/email-already-in-use": "Email già registrata.",
+      "auth/weak-password": "La password deve avere almeno 6 caratteri.",
+      "auth/invalid-credential": "Credenziali non valide.",
+    };
+    return map[code] || "Si è verificato un errore. Riprova.";
+  };
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="brand" style={{marginBottom:24, justifyContent:"center"}}>
+          <div className="brand-mark">G</div>
+          <div className="brand-name">GesPro</div>
+        </div>
+        <h2 style={{textAlign:"center", fontSize:18}}>{mode === "login" ? "Accedi" : "Crea un account"}</h2>
+        {error && <div className="error">{error}</div>}
+        <form onSubmit={submit}>
+          <label>Email</label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required style={{marginBottom:14}} />
+          <label>Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6} style={{marginBottom:20}} />
+          <button className="btn" type="submit" style={{width:"100%"}} disabled={loading}>
+            {loading ? "Attendere..." : (mode === "login" ? "Accedi" : "Registrati")}
+          </button>
+        </form>
+        <div className="auth-switch">
+          {mode === "login" ? (
+            <span>Non hai un account? <a onClick={()=>{setMode("register"); setError("");}}>Registrati</a></span>
+          ) : (
+            <span>Hai già un account? <a onClick={()=>{setMode("login"); setError("");}}>Accedi</a></span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ NUOVA PRESCRIZIONE ============
+function NewPrescription({ user, onSaved }) {
+  const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
+  const [teeth, setTeeth] = useState([]);
+  const [category, setCategory] = useState(PRICE_LIST[0].category);
+  const [selectedItem, setSelectedItem] = useState(PRICE_LIST[0].items[0].name);
+  const [lines, setLines] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggleTooth = (n) => {
+    setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
+  };
+
+  const currentCategoryItems = PRICE_LIST.find(c => c.category === category).items;
+
+  const addLine = () => {
+    const item = currentCategoryItems.find(i => i.name === selectedItem);
+    setLines(l => [...l, { category, name: item.name, price: item.price }]);
+  };
+
+  const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
+  const total = lines.reduce((s,l)=>s+l.price, 0);
+
+  const canSave = patient.nome && patient.cognome && lines.length > 0;
+
+  const save = async () => {
+    setError("");
+    if (!canSave) { setError("Compila nome, cognome paziente e aggiungi almeno un dispositivo."); return; }
+    setSaving(true);
+    try {
+      await db.collection("users").doc(user.uid).collection("prescriptions").add({
+        patient, teeth, lines, total,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      onSaved();
+    } catch (err) {
+      setError("Errore nel salvataggio: " + err.message);
+    }
+    setSaving(false);
+  };
+
+  const doPrint = () => {
+    if (!canSave) { setError("Compila nome, cognome paziente e aggiungi almeno un dispositivo prima di stampare."); return; }
+    window.print();
+  };
+
+  return (
+    <div>
+      <div className="card">
+        <h3>Dati paziente</h3>
+        {error && <div className="error">{error}</div>}
+        <div className="row">
+          <div>
+            <label>Nome</label>
+            <input value={patient.nome} onChange={e=>setPatient({...patient, nome:e.target.value})} />
+          </div>
+          <div>
+            <label>Cognome</label>
+            <input value={patient.cognome} onChange={e=>setPatient({...patient, cognome:e.target.value})} />
+          </div>
+        </div>
+        <div style={{maxWidth:240}}>
+          <label>Data di nascita</label>
+          <input type="date" value={patient.dataNascita} onChange={e=>setPatient({...patient, dataNascita:e.target.value})} />
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Schema dentale</h3>
+        <p style={{fontSize:13, color:"var(--muted)", marginTop:0}}>Seleziona i denti coinvolti (numerazione FDI/ISO).</p>
+        <DentalChart selected={teeth} onToggle={toggleTooth} />
+      </div>
+
+      <div className="card">
+        <h3>Dispositivo da realizzare</h3>
+        <div className="row">
+          <div>
+            <label>Categoria</label>
+            <select value={category} onChange={e=>{ setCategory(e.target.value); setSelectedItem(PRICE_LIST.find(c=>c.category===e.target.value).items[0].name); }}>
+              {PRICE_LIST.map(c => <option key={c.category} value={c.category}>{c.category}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Dispositivo</label>
+            <select value={selectedItem} onChange={e=>setSelectedItem(e.target.value)}>
+              {currentCategoryItems.map(i => <option key={i.name} value={i.name}>{i.name} — €{i.price}</option>)}
+            </select>
+          </div>
+        </div>
+        <button className="btn secondary" onClick={addLine} type="button">+ Aggiungi alla prescrizione</button>
+
+        {lines.length > 0 && (
+          <table style={{marginTop:18}}>
+            <thead><tr><th>Categoria</th><th>Dispositivo</th><th>Prezzo</th><th></th></tr></thead>
+            <tbody>
+              {lines.map((l, idx) => (
+                <tr key={idx}>
+                  <td>{l.category}</td>
+                  <td>{l.name}</td>
+                  <td className="mono">€{l.price.toFixed(2)}</td>
+                  <td><button className="btn danger" onClick={()=>removeLine(idx)} type="button">Rimuovi</button></td>
+                </tr>
+              ))}
+              <tr className="total-row"><td colSpan="2">Totale</td><td className="mono">€{total.toFixed(2)}</td><td></td></tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div style={{display:"flex", gap:12}}>
+        <button className="btn" onClick={save} disabled={saving}>{saving ? "Salvataggio..." : "Salva prescrizione"}</button>
+        <button className="btn secondary" onClick={doPrint} type="button">Stampa / Salva PDF</button>
+      </div>
+
+      {/* Area di stampa (visibile solo in stampa) */}
+      <div className="print-area">
+        <div className="print-header">
+          <div>
+            <h2 style={{margin:0}}>GesPro</h2>
+            <div style={{fontSize:12, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div>
+          </div>
+          <div style={{fontSize:12}}>{new Date().toLocaleDateString("it-IT")}</div>
+        </div>
+        <h3>Paziente</h3>
+        <p>{patient.nome} {patient.cognome}{patient.dataNascita ? " — nato/a il " + new Date(patient.dataNascita).toLocaleDateString("it-IT") : ""}</p>
+        <h3>Denti coinvolti</h3>
+        <div className="print-teeth">
+          {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessun dente selezionato</em>}
+        </div>
+        <h3 style={{marginTop:20}}>Dispositivi richiesti</h3>
+        <table>
+          <thead><tr><th>Categoria</th><th>Dispositivo</th><th>Prezzo</th></tr></thead>
+          <tbody>
+            {lines.map((l, idx) => (
+              <tr key={idx}><td>{l.category}</td><td>{l.name}</td><td>€{l.price.toFixed(2)}</td></tr>
+            ))}
+            <tr className="total-row"><td colSpan="2">Totale</td><td>€{total.toFixed(2)}</td></tr>
+          </tbody>
+        </table>
+        <div style={{marginTop:60, display:"flex", justifyContent:"space-between"}}>
+          <div>_____________________<br/><small>Firma</small></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ ELENCO PRESCRIZIONI ============
+function PrescriptionList({ user }) {
+  const [items, setItems] = useState(null);
+
+  useEffect(() => {
+    db.collection("users").doc(user.uid).collection("prescriptions")
+      .orderBy("createdAt", "desc").get().then(snap => {
+        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+  }, []);
+
+  if (items === null) return <div className="empty">Caricamento...</div>;
+  if (items.length === 0) return <div className="empty">Nessuna prescrizione ancora salvata.</div>;
+
+  return (
+    <div className="card">
+      <table>
+        <thead><tr><th>Data</th><th>Paziente</th><th>Dispositivi</th><th>Totale</th></tr></thead>
+        <tbody>
+          {items.map(p => (
+            <tr key={p.id}>
+              <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
+              <td>{p.patient.nome} {p.patient.cognome}</td>
+              <td>{p.lines.map(l=>l.name).join(", ")}</td>
+              <td className="mono">€{p.total.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============ APP PRINCIPALE ============
+function App() {
+  const [user, setUser] = useState(undefined);
+  const [tab, setTab] = useState("new");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => setUser(u));
+    return unsub;
+  }, []);
+
+  if (user === undefined) return <div className="empty">Caricamento...</div>;
+  if (user === null) return <AuthScreen />;
+
+  return (
+    <div>
+      <div className="topbar">
+        <div className="brand">
+          <div className="brand-mark">G</div>
+          <div className="brand-name">GesPro</div>
+        </div>
+        <div className="tabs">
+          <div className={"tab" + (tab==="new" ? " active" : "")} onClick={()=>setTab("new")}>Nuova prescrizione</div>
+          <div className={"tab" + (tab==="list" ? " active" : "")} onClick={()=>{setTab("list"); setRefreshKey(k=>k+1);}}>Elenco prescrizioni</div>
+        </div>
+        <button className="btn secondary" onClick={()=>auth.signOut()}>Esci</button>
+      </div>
+      <div className="container">
+        {tab === "new" && <NewPrescription user={user} onSaved={()=>{ setTab("list"); setRefreshKey(k=>k+1); }} />}
+        {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
