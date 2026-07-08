@@ -327,13 +327,16 @@ function AuthScreen() {
 function ChangePassword({ onClose }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [ok, setOk] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError("");
+    if (next !== confirm) { setError("Le due password non coincidono."); return; }
+    setLoading(true);
     try {
       const user = auth.currentUser;
       const cred = firebase.auth.EmailAuthProvider.credential(user.email, current);
@@ -354,9 +357,12 @@ function ChangePassword({ onClose }) {
       ) : (
         <form onSubmit={submit}>
           {error && <div className="error">{error}</div>}
+          <div style={{maxWidth:300, marginBottom:16}}>
+            <label>Password attuale</label><input type="password" value={current} onChange={e=>setCurrent(e.target.value)} required />
+          </div>
           <div className="row">
-            <div><label>Password attuale</label><input type="password" value={current} onChange={e=>setCurrent(e.target.value)} required /></div>
             <div><label>Nuova password</label><input type="password" value={next} onChange={e=>setNext(e.target.value)} required minLength={6} /></div>
+            <div><label>Conferma nuova password</label><input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} required minLength={6} /></div>
           </div>
           <div style={{display:"flex", gap:10}}>
             <button className="btn" type="submit" disabled={loading}>{loading ? "Attendere..." : "Aggiorna password"}</button>
