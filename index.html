@@ -685,12 +685,19 @@ function NewPrescription({ user, catalog, onSaved }) {
 
 function PrescriptionList({ user }) {
   const [items, setItems] = useState(null);
+  const [error, setError] = useState("");
   useEffect(() => {
-    db.collection("prescriptions").where("ownerId", "==", user.uid)
-      .orderBy("createdAt", "desc").get().then(snap => {
-        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
+    // Nota: niente orderBy nella query, per evitare di dover creare un indice composito su Firestore.
+    // L'ordinamento per data viene fatto qui lato app.
+    db.collection("prescriptions").where("ownerId", "==", user.uid).get()
+      .then(snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (b.createdAt ? b.createdAt.seconds : 0) - (a.createdAt ? a.createdAt.seconds : 0));
+        setItems(list);
+      })
+      .catch(err => setError("Errore nel caricamento: " + err.message));
   }, []);
+  if (error) return <div className="error">{error}</div>;
   if (items === null) return <div className="empty">Caricamento...</div>;
   if (items.length === 0) return <div className="empty">Nessuna prescrizione ancora salvata.</div>;
   return (
