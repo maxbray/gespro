@@ -1,54 +1,110 @@
 # GesPro
 
-App per creare prescrizioni odontotecniche: anagrafica paziente, schema dentale (FDI/ISO), selezione dispositivo dal listino, stampa/PDF locale.
+App per creare prescrizioni odontotecniche complete: anamnesi, dati paziente, schema dentale con icone per tipo di dente, descrizione dispositivo, materiali, impronte, colore, codice univoco progressivo, stampa/PDF a due colonne (scheda + modulo prove). Pannello di amministrazione con gestione utenti, catalogo e prescrizioni.
 
 Tecnologie: React + Firebase (Authentication + Firestore), un unico file `index.html`, nessun build tool richiesto.
 
 ## 1. Pubblicare su GitHub Pages
 
-1. Crea un nuovo repository su github.com, chiamalo `gespro`.
-2. Carica il file `index.html` (e questo `README.md`) nel repository (pulsante "Add file" → "Upload files").
-3. Vai su **Settings → Pages**.
-4. In "Branch" seleziona `main` e cartella `/ (root)`, poi **Save**.
-5. Dopo 1-2 minuti l'app sarà online su `https://TUO-USERNAME.github.io/gespro/`.
+1. Repository GitHub `gespro`, **pubblico**.
+2. Carica `index.html` e questo `README.md`.
+3. Settings → Pages → Branch `main`, cartella `/ (root)` → Save.
+4. Online dopo 1-2 minuti su `https://TUO-USERNAME.github.io/gespro/`.
 
 ## 2. Autorizzare il dominio in Firebase
 
-Perché il login funzioni sul dominio pubblico:
+Console Firebase → **Authentication → Settings → Authorized domains** → **Add domain** → `TUO-USERNAME.github.io`.
 
-1. Console Firebase → **Authentication → Settings → Authorized domains**.
-2. Clicca **Add domain** e inserisci `TUO-USERNAME.github.io`.
+## 3. Regole di sicurezza di Firestore
 
-## 3. Sistemare le regole di sicurezza di Firestore (importante prima dell'uso reale)
-
-Ora il database è in "modalità di test" (accesso libero, scade dopo 30 giorni). Prima di usarlo con pazienti veri, vai su **Firestore Database → Regole** e incolla:
+Console Firebase → **Firestore Database → Regole** → incolla e pubblica (**è cambiata**: aggiunta la collezione `counters` per i codici progressivi):
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null && (
+        (request.auth.uid == userId && request.resource.data.role == 'user') ||
+        isAdmin()
+      );
+      allow update: if isAdmin();
+    }
+
+    match /catalog/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if request.auth != null && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
 ```
 
-Questo garantisce che ogni utente veda e modifichi solo le proprie prescrizioni.
+## 4. Codice univoco prescrizione
 
-## 4. Personalizzare il listino
+Ogni prescrizione riceve automaticamente al salvataggio un codice progressivo tipo `RX-2026-0001` (anno + numero progressivo), generato con un contatore transazionale su Firestore — quindi garantito senza duplicati anche se più utenti salvano nello stesso istante.
 
-Nel file `index.html`, cerca il blocco `PRICE_LIST` (in cima allo script) e sostituisci categorie/dispositivi/prezzi con quelli reali del laboratorio. Struttura:
+## 5. Modulo prescrizione completo
 
-```js
-const PRICE_LIST = [
-  { category: "Nome categoria", items: [
-    { name: "Nome dispositivo", price: 123 },
-  ]},
-];
-```
+Oltre ai dati paziente e allo schema dentale, il form ora comprende:
 
-## 5. Uso quotidiano
+- **Anamnesi**: "Nulla da segnalare" selezionato di default; selezionando una o più voci specifiche (allergie, disfunzioni articolari, altri dispositivi, handicap psicomotori, bruxismo, malattie infettive, altro) compare un campo di testo libero per i dettagli.
+- **Altre informazioni**: età, sesso, forma del viso (quadrato/tondo/triangolare, con icone).
+- **Descrizione del dispositivo**: testo libero oltre alla selezione dal catalogo.
+- **Materiale da utilizzare**: menu con le opzioni comuni (Lega Co-Cr, Zirconia, Resina, Ceramica, Titanio, Metallo-ceramica) o "Altro" con testo libero.
+- **Materiale allegato**: selezione multipla (radiografie, cere, modelli provvisori, fotografie, siliconi, registrazione pantografica, modelli già sviluppati, resine, arco facciale, registrazioni occlusali).
+- **Impronte**: giorno di rilevazione, disinfettante utilizzato, materiale.
+- **Colore**: colore e campionario di riferimento.
 
-- **Nuova prescrizione**: compila paziente, clicca i denti coinvolti sullo schema, aggiungi uno o più dispositivi dal listino, poi "Salva prescrizione" e/o "Stampa / Salva PDF" (quest'ultimo apre la finestra di stampa del browser: puoi stampare su carta o salvare come PDF).
-- **Elenco prescrizioni**: mostra lo storico salvato su Firestore, visibile solo all'utente che le ha create.
+## 6. Schema dentale con icone realistiche
+
+Le icone cambiano forma in base al tipo di dente secondo la numerazione FDI/ISO: incisivo, canino, premolare, molare — con legenda sotto lo schema.
+
+## 7. Stampa PDF a due colonne
+
+Cliccando "Stampa / Salva PDF": la colonna sinistra contiene tutte le informazioni della prescrizione (anamnesi, paziente, denti, dispositivo, materiali, impronte, colore); la colonna destra contiene un **modulo delle prove** (tabella con 4 righe vuote: data prova, esito/note, firma) da compilare a mano durante gli appuntamenti successivi.
+
+## 8. Gestione utenti e password (pannello Admin → Utenti)
+
+- **Creazione**: l'admin crea un nuovo account (email + ruolo); l'app genera una password temporanea mostrata una sola volta, da comunicare alla persona.
+- **Reset password per utenti esistenti**: pulsante "Invia email reset password" per ogni utente — invia l'email standard di Firebase con un link che permette alla persona di scegliere una nuova password.
+
+  **Nota tecnica**: senza un vero backend (Cloud Functions), l'admin non può impostare direttamente una password a piacere per un utente già esistente — solo l'utente stesso può farlo, tramite il link ricevuto via email o dal menu "Cambia password" una volta loggato.
+
+### Diventare il primo amministratore (passaggio manuale, una tantum)
+
+1. Console Firebase → **Authentication → Users → Add user** → email + password.
+2. Copia lo **User UID** generato.
+3. Console Firebase → **Firestore Database → Dati** → crea/apri la raccolta `users` → **Aggiungi documento** → come ID documento incolla lo UID.
+4. Campi: `email` (string), `role` (string, `admin`), `createdAt` (timestamp, ora).
+5. Login nell'app con quell'account.
+
+## 9. Gestione prescrizioni (pannello Admin → Tutte le prescrizioni)
+
+L'admin vede tutte le prescrizioni di tutti gli utenti, può aprire il **Dettaglio** di ognuna (anamnesi, materiali, impronte, colore, ecc.) e **eliminarle**. La modifica dei singoli campi di una prescrizione già salvata non è ancora implementata: se ti serve, dimmelo e la aggiungo.
+
+## 10. Catalogo dispositivi (senza prezzo)
+
+Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**.
+
+## 11. Uso quotidiano (utente normale)
+
+- **Nuova prescrizione**: compila tutte le sezioni del modulo, poi "Salva prescrizione" (assegna il codice univoco) e/o "Stampa / Salva PDF".
+- **Elenco prescrizioni**: storico delle proprie prescrizioni con codice.
+- **Cambia password**: in alto.

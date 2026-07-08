@@ -23,12 +23,14 @@
   *{box-sizing:border-box;}
   body{ margin:0; font-family:'Inter',sans-serif; background:var(--bg); color:var(--ink); }
   h1,h2,h3{ font-family:'Fraunces',serif; font-weight:600; margin:0 0 8px 0;}
+  h4{ font-family:'Inter',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px 0; }
   .mono{ font-family:'IBM Plex Mono',monospace; }
   .topbar{ display:flex; align-items:center; justify-content:space-between; padding:16px 28px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand-mark{ width:34px;height:34px;border-radius:8px;background:var(--teal); display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Fraunces',serif;font-weight:600; }
   .brand-name{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; letter-spacing:.2px;}
   .badge{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; background:var(--amber); color:#fff; padding:2px 7px; border-radius:5px; margin-left:8px; vertical-align:middle;}
+  .code-badge{ font-family:'IBM Plex Mono',monospace; font-size:11px; background:var(--teal); color:#fff; padding:2px 8px; border-radius:5px; margin-left:8px; }
   .tabs{ display:flex; gap:4px; flex-wrap:wrap; }
   .tab{ padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:500; color:var(--muted); font-size:14px; }
   .tab.active{ background:var(--teal); color:#fff; }
@@ -37,10 +39,12 @@
   .container{ max-width:1040px; margin:0 auto; padding:28px; }
   .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
   label{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:6px; }
-  input, select{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); }
-  input:focus, select:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  input, select, textarea{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); }
+  textarea{ resize:vertical; min-height:70px; }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; }
   .row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
   .row3{ display:grid; grid-template-columns:1fr 2fr auto; gap:16px; margin-bottom:16px; align-items:end; }
+  .row-auto{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px; margin-bottom:16px; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600; font-size:14px; background:var(--teal); color:#fff; transition:background .15s; }
   .btn:hover{ background:var(--teal-dark); }
   .btn.secondary{ background:transparent; color:var(--teal); border:1px solid var(--teal); }
@@ -54,10 +58,19 @@
   .auth-card{ width:380px; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:32px; }
   .auth-note{ text-align:center; margin-top:16px; font-size:13px; color:var(--muted); }
 
+  .checkbox-row{ display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; font-size:14px; }
+  .checkbox-row input{ width:auto; margin-top:3px; }
+  .checkbox-grid{ display:grid; grid-template-columns:1fr 1fr; gap:2px 16px; }
+
+  .icon-choice-group{ display:flex; gap:10px; }
+  .icon-choice{ background:#fff; border:1.5px solid var(--border); border-radius:10px; padding:10px 14px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--muted); }
+  .icon-choice.selected{ border-color:var(--teal); background:#EAF3F2; color:var(--teal-dark); font-weight:600; }
+  .icon-choice svg{ width:26px; height:26px; }
+
   .dental-chart{ text-align:center; }
-  .arch{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .arch{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
   .tooth-btn{ background:none; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; padding:2px; }
-  .tooth-btn svg{ width:26px; height:32px; transition:all .12s; }
+  .tooth-btn svg{ width:24px; height:30px; transition:all .12s; }
   .tooth-btn .tooth-shape{ fill:#fff; stroke:var(--border); stroke-width:1.5; }
   .tooth-btn:hover .tooth-shape{ stroke:var(--teal); }
   .tooth-btn.selected .tooth-shape{ fill:var(--teal); stroke:var(--teal); }
@@ -65,15 +78,21 @@
   .tooth-btn.selected .tooth-num{ color:var(--teal-dark); font-weight:700; }
   .arch-label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
   .midline{ width:0; border-left:1px dashed var(--border); margin:0 4px; }
+  .legend{ display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:4px; }
+  .legend svg{ width:16px; height:20px; }
+  .legend .tooth-shape{ fill:#fff; stroke:var(--muted); stroke-width:1.5; }
 
   table{ width:100%; border-collapse:collapse; font-size:14px; }
   th{ text-align:left; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; padding:8px; border-bottom:1px solid var(--border); }
-  td{ padding:10px 8px; border-bottom:1px solid var(--border); }
+  td{ padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
   .role-pill{ font-size:11px; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   .role-pill.admin{ background:var(--amber); color:#fff; }
   .role-pill.user{ background:var(--border); color:var(--muted); }
   .device-tag{ display:inline-block; background:#EAF3F2; color:var(--teal-dark); padding:4px 10px; border-radius:6px; font-size:13px; margin:0 6px 6px 0; }
   .code-chip{ font-family:'IBM Plex Mono',monospace; font-size:11px; background:var(--border); padding:1px 6px; border-radius:4px; margin-right:6px; }
+  .detail-box{ background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; font-size:13px; line-height:1.7; }
+  .detail-box b{ color:var(--muted); }
 
   .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
   .print-area{ display:none; }
@@ -81,10 +100,17 @@
   @media print{
     body *{ visibility:hidden; }
     .print-area, .print-area *{ visibility:visible; }
-    .print-area{ display:block; position:absolute; top:0; left:0; width:100%; padding:20px; }
-    .print-header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:12px; margin-bottom:20px; }
-    .print-teeth{ display:flex; flex-wrap:wrap; gap:6px; }
-    .print-tooth{ border:1px solid #12242B; border-radius:4px; padding:4px 8px; font-family:monospace; font-size:13px; }
+    .print-area{ display:block; position:absolute; top:0; left:0; width:100%; padding:14px; font-size:11px; }
+    .print-header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:8px; margin-bottom:12px; }
+    .print-columns{ display:flex; gap:16px; }
+    .print-col{ width:50%; }
+    .print-section{ margin-bottom:10px; border:1px solid #ccc; border-radius:6px; padding:8px; }
+    .print-section h5{ margin:0 0 6px 0; font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #ccc; padding-bottom:4px; }
+    .print-teeth{ display:flex; flex-wrap:wrap; gap:4px; }
+    .print-tooth{ border:1px solid #12242B; border-radius:4px; padding:2px 6px; font-family:monospace; font-size:11px; }
+    .trial-table{ width:100%; border-collapse:collapse; }
+    .trial-table th, .trial-table td{ border:1px solid #999; padding:6px; font-size:10px; }
+    .trial-table td{ height:34px; }
   }
 </style>
 </head>
@@ -125,6 +151,23 @@ const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
 const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
 const LOWER_RIGHT = [48,47,46,45,44,43,42,41];
 
+const ANAMNESI_OPTIONS = [
+  { key:"allergie", label:"Allergie accertate" },
+  { key:"disfunzioniArticolari", label:"Disfunzioni articolari" },
+  { key:"altriDispositivi", label:"Presenza di altri dispositivi e loro materiali" },
+  { key:"handicapPsicomotori", label:"Handicap psicomotori" },
+  { key:"bruxista", label:"Bruxista" },
+  { key:"malattieInfettive", label:"Malattie infettive" },
+  { key:"altro", label:"Altro" },
+];
+
+const MATERIALI = ["Lega Co-Cr", "Zirconia", "Resina", "Ceramica", "Titanio", "Metallo-ceramica", "Altro"];
+
+const MATERIALE_ALLEGATO_OPTIONS = [
+  "Radiografie", "Cere", "Modelli provvisori", "Fotografie", "Siliconi",
+  "Registrazione pantografica", "Modelli già sviluppati", "Resine", "Arco facciale", "Registrazioni occlusali",
+];
+
 function generatePassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let out = "";
@@ -150,39 +193,18 @@ async function createUserAsAdmin(email, password, role) {
   }
 }
 
-// Icona a forma di dente, colorata in base allo stato di selezione tramite CSS (.selected)
-function ToothIcon() {
-  return (
-    <svg viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
-      <path className="tooth-shape" d="M12 2c-2.2 0-3.4 1.1-4.6 1.1C5.8 3.1 4 2 2.6 3.4 1.2 4.8 1.6 7.6 2 10c.5 3 1.3 6.2 2.6 9.5.7 1.8 1.6 3.6 2.9 3.6 1.4 0 1.6-2.3 1.8-4.3.2-1.7.5-3.3 1.7-3.3s1.5 1.6 1.7 3.3c.2 2 .4 4.3 1.8 4.3 1.3 0 2.2-1.8 2.9-3.6C18.7 16.2 19.5 13 20 10c.4-2.4.8-5.2-.6-6.6C18 2 16.2 3.1 14.6 3.1 13.4 3.1 12 2 12 2z"/>
-    </svg>
-  );
-}
-
-function DentalChart({ selected, onToggle }) {
-  const renderArch = (left, right) => (
-    <div className="arch">
-      {left.map(n => (
-        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
-          <ToothIcon /><span className="tooth-num">{n}</span>
-        </button>
-      ))}
-      <div className="midline"></div>
-      {right.map(n => (
-        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
-          <ToothIcon /><span className="tooth-num">{n}</span>
-        </button>
-      ))}
-    </div>
-  );
-  return (
-    <div className="dental-chart">
-      <div className="arch-label">Arcata superiore</div>
-      {renderArch(UPPER_RIGHT, UPPER_LEFT)}
-      <div className="arch-label" style={{marginTop:14}}>Arcata inferiore</div>
-      {renderArch(LOWER_RIGHT, LOWER_LEFT)}
-    </div>
-  );
+// Genera un codice prescrizione univoco e progressivo tipo RX-2026-0001, tramite contatore transazionale
+async function generatePrescriptionCode() {
+  const year = new Date().getFullYear();
+  const counterRef = db.collection("counters").doc("prescriptions_" + year);
+  const nextNumber = await db.runTransaction(async (tx) => {
+    const doc = await tx.get(counterRef);
+    const current = doc.exists ? doc.data().value : 0;
+    const next = current + 1;
+    tx.set(counterRef, { value: next }, { merge: true });
+    return next;
+  });
+  return "RX-" + year + "-" + String(nextNumber).padStart(4, "0");
 }
 
 function traduciErrore(code) {
@@ -197,6 +219,70 @@ function traduciErrore(code) {
   return map[code] || "Si è verificato un errore. Riprova.";
 }
 
+// ============ ICONE DENTI (per tipo anatomico) ============
+function toothType(n) {
+  const pos = n % 10;
+  if (pos <= 2) return "incisor";
+  if (pos === 3) return "canine";
+  if (pos <= 5) return "premolar";
+  return "molar";
+}
+
+const TOOTH_PATHS = {
+  incisor: "M9 3 L15 3 Q17 3 16.5 7 L15.5 18 Q15.2 25 12 25 Q8.8 25 8.5 18 L7.5 7 Q7 3 9 3 Z",
+  canine: "M12 2 L17 8 Q18.5 11 16.5 15 L15.5 19 Q15 25 12 25 Q9 25 8.5 19 L7.5 15 Q5.5 11 7 8 Z",
+  premolar: "M6.5 8 Q7 3 9.5 5.5 Q11 2.5 12 5 Q13 2.5 14.5 5.5 Q17 3 17.5 8 L16.5 18 Q16 25 12 25 Q8 25 7.5 18 Z",
+  molar: "M4 9 Q4.5 3 7 5.5 Q9 2.5 10.5 5 Q12 2.5 13.5 5 Q15 2.5 17 5.5 Q19.5 3 20 9 L19 19 Q18.5 25 12 25 Q5.5 25 5 19 Z",
+};
+
+function ToothIcon({ type }) {
+  return (
+    <svg viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+      <path className="tooth-shape" d={TOOTH_PATHS[type]} />
+    </svg>
+  );
+}
+
+function DentalChart({ selected, onToggle }) {
+  const renderArch = (left, right) => (
+    <div className="arch">
+      {left.map(n => (
+        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
+          <ToothIcon type={toothType(n)} /><span className="tooth-num">{n}</span>
+        </button>
+      ))}
+      <div className="midline"></div>
+      {right.map(n => (
+        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
+          <ToothIcon type={toothType(n)} /><span className="tooth-num">{n}</span>
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <div className="dental-chart">
+      <div className="arch-label">Arcata superiore</div>
+      {renderArch(UPPER_RIGHT, UPPER_LEFT)}
+      <div className="arch-label" style={{marginTop:14}}>Arcata inferiore</div>
+      {renderArch(LOWER_RIGHT, LOWER_LEFT)}
+      <div className="legend">
+        <span><ToothIcon type="incisor" />Incisivo</span>
+        <span><ToothIcon type="canine" />Canino</span>
+        <span><ToothIcon type="premolar" />Premolare</span>
+        <span><ToothIcon type="molar" />Molare</span>
+      </div>
+    </div>
+  );
+}
+
+// ============ ICONE FORMA VISO ============
+function FaceIcon({ shape }) {
+  if (shape === "quadrato") return <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="2"/></svg>;
+  if (shape === "tondo") return <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2"/></svg>;
+  return <svg viewBox="0 0 24 24"><polygon points="12,3 21,20 3,20" fill="none" stroke="currentColor" strokeWidth="2"/></svg>;
+}
+
+// ============ AUTH ============
 function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -282,6 +368,9 @@ function ChangePassword({ onClose }) {
   );
 }
 
+// ============ NUOVA PRESCRIZIONE ============
+const DEFAULT_ANAMNESI = { nullaDaSegnalare:true, allergie:false, disfunzioniArticolari:false, altriDispositivi:false, handicapPsicomotori:false, bruxista:false, malattieInfettive:false, altro:false, note:"" };
+
 function NewPrescription({ user, catalog, onSaved }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
@@ -289,8 +378,20 @@ function NewPrescription({ user, catalog, onSaved }) {
   const [category, setCategory] = useState(categories[0] || "");
   const [selectedCode, setSelectedCode] = useState("");
   const [lines, setLines] = useState([]);
+  const [anamnesi, setAnamnesi] = useState(DEFAULT_ANAMNESI);
+  const [eta, setEta] = useState("");
+  const [sesso, setSesso] = useState("");
+  const [formaViso, setFormaViso] = useState("");
+  const [descrizioneDispositivo, setDescrizioneDispositivo] = useState("");
+  const [materiale, setMateriale] = useState(MATERIALI[0]);
+  const [materialeAltro, setMaterialeAltro] = useState("");
+  const [materialeAllegato, setMaterialeAllegato] = useState([]);
+  const [impronte, setImpronte] = useState({ data:"", disinfettateCon:"", materialeUtilizzato:"" });
+  const [colore, setColore] = useState("");
+  const [campionario, setCampionario] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [savedCode, setSavedCode] = useState(null);
 
   useEffect(() => {
     const items = catalog.filter(i => i.category === category);
@@ -305,6 +406,22 @@ function NewPrescription({ user, catalog, onSaved }) {
     if (item) setLines(l => [...l, { category: item.category, code: item.code, description: item.description }]);
   };
   const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
+
+  const toggleAnamnesi = (key) => {
+    setAnamnesi(a => {
+      if (key === "nullaDaSegnalare") {
+        return { ...DEFAULT_ANAMNESI };
+      }
+      const updated = { ...a, [key]: !a[key], nullaDaSegnalare: false };
+      return updated;
+    });
+  };
+  const anamnesiNeedsNote = ANAMNESI_OPTIONS.some(o => anamnesi[o.key]);
+
+  const toggleAllegato = (opt) => {
+    setMaterialeAllegato(list => list.includes(opt) ? list.filter(x=>x!==opt) : [...list, opt]);
+  };
+
   const canSave = patient.nome && patient.cognome && lines.length > 0;
 
   const save = async () => {
@@ -312,11 +429,20 @@ function NewPrescription({ user, catalog, onSaved }) {
     if (!canSave) { setError("Compila nome, cognome paziente e aggiungi almeno un dispositivo."); return; }
     setSaving(true);
     try {
+      const code = await generatePrescriptionCode();
       await db.collection("prescriptions").add({
-        ownerId: user.uid, ownerEmail: user.email,
+        code, ownerId: user.uid, ownerEmail: user.email,
         patient, teeth, lines,
+        anamnesi,
+        altreInfo: { eta, sesso, formaViso },
+        descrizioneDispositivo,
+        materiale: materiale === "Altro" ? materialeAltro : materiale,
+        materialeAllegato,
+        impronte,
+        colore, campionario,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      setSavedCode(code);
       onSaved();
     } catch (err) {
       setError("Errore nel salvataggio: " + err.message);
@@ -349,6 +475,51 @@ function NewPrescription({ user, catalog, onSaved }) {
       </div>
 
       <div className="card">
+        <h3>Anamnesi</h3>
+        <div className="checkbox-row">
+          <input type="checkbox" checked={anamnesi.nullaDaSegnalare} onChange={()=>toggleAnamnesi("nullaDaSegnalare")} />
+          <label style={{margin:0, fontWeight:700, color:"var(--ink)"}}>Nulla da segnalare</label>
+        </div>
+        <div className="checkbox-grid">
+          {ANAMNESI_OPTIONS.map(o => (
+            <div className="checkbox-row" key={o.key}>
+              <input type="checkbox" checked={anamnesi[o.key]} onChange={()=>toggleAnamnesi(o.key)} />
+              <label style={{margin:0, fontWeight:400, color:"var(--ink)"}}>{o.label}</label>
+            </div>
+          ))}
+        </div>
+        {anamnesiNeedsNote && (
+          <div style={{marginTop:10}}>
+            <label>Specifica</label>
+            <textarea value={anamnesi.note} onChange={e=>setAnamnesi({...anamnesi, note:e.target.value})} placeholder="Dettagli su quanto selezionato sopra..." />
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>Altre informazioni</h3>
+        <div className="row-auto">
+          <div><label>Età</label><input type="number" min="0" value={eta} onChange={e=>setEta(e.target.value)} /></div>
+          <div>
+            <label>Sesso</label>
+            <div style={{display:"flex", gap:8}}>
+              <button type="button" className={"btn " + (sesso==="M" ? "" : "secondary")} onClick={()=>setSesso("M")} style={{flex:1}}>M</button>
+              <button type="button" className={"btn " + (sesso==="F" ? "" : "secondary")} onClick={()=>setSesso("F")} style={{flex:1}}>F</button>
+            </div>
+          </div>
+        </div>
+        <label>Forma del viso</label>
+        <div className="icon-choice-group">
+          {["quadrato","tondo","triangolare"].map(shape => (
+            <div key={shape} className={"icon-choice" + (formaViso===shape ? " selected" : "")} onClick={()=>setFormaViso(shape)}>
+              <FaceIcon shape={shape} />
+              {shape}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
         <h3>Schema dentale</h3>
         <p style={{fontSize:13, color:"var(--muted)", marginTop:0}}>Seleziona i denti coinvolti (numerazione FDI/ISO).</p>
         <DentalChart selected={teeth} onToggle={toggleTooth} />
@@ -371,9 +542,8 @@ function NewPrescription({ user, catalog, onSaved }) {
           </div>
         </div>
         <button className="btn secondary" onClick={addLine} type="button">+ Aggiungi alla prescrizione</button>
-
         {lines.length > 0 && (
-          <div style={{marginTop:18}}>
+          <div style={{marginTop:18, marginBottom:16}}>
             {lines.map((l, idx) => (
               <span key={idx} className="device-tag">
                 <span className="code-chip">{l.code}</span>{l.description}
@@ -382,7 +552,55 @@ function NewPrescription({ user, catalog, onSaved }) {
             ))}
           </div>
         )}
+        <label>Descrizione del dispositivo</label>
+        <textarea value={descrizioneDispositivo} onChange={e=>setDescrizioneDispositivo(e.target.value)} placeholder="Dettagli su misura, indicazioni specifiche..." />
       </div>
+
+      <div className="card">
+        <h3>Materiale da utilizzare</h3>
+        <div className="row">
+          <div>
+            <label>Materiale</label>
+            <select value={materiale} onChange={e=>setMateriale(e.target.value)}>
+              {MATERIALI.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          {materiale === "Altro" && (
+            <div><label>Specifica materiale</label><input value={materialeAltro} onChange={e=>setMaterialeAltro(e.target.value)} /></div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Materiale allegato</h3>
+        <div className="checkbox-grid">
+          {MATERIALE_ALLEGATO_OPTIONS.map(opt => (
+            <div className="checkbox-row" key={opt}>
+              <input type="checkbox" checked={materialeAllegato.includes(opt)} onChange={()=>toggleAllegato(opt)} />
+              <label style={{margin:0, fontWeight:400, color:"var(--ink)"}}>{opt}</label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Impronte</h3>
+        <div className="row-auto">
+          <div><label>Rilevate il giorno</label><input type="date" value={impronte.data} onChange={e=>setImpronte({...impronte, data:e.target.value})} /></div>
+          <div><label>Disinfettate con</label><input value={impronte.disinfettateCon} onChange={e=>setImpronte({...impronte, disinfettateCon:e.target.value})} /></div>
+          <div><label>Materiale utilizzato</label><input value={impronte.materialeUtilizzato} onChange={e=>setImpronte({...impronte, materialeUtilizzato:e.target.value})} /></div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Colore</h3>
+        <div className="row">
+          <div><label>Colore</label><input value={colore} onChange={e=>setColore(e.target.value)} placeholder="Es. A2" /></div>
+          <div><label>Campionario</label><input value={campionario} onChange={e=>setCampionario(e.target.value)} placeholder="Es. VITA Classic" /></div>
+        </div>
+      </div>
+
+      {savedCode && <div className="success">Prescrizione salvata con codice <strong className="mono">{savedCode}</strong>.</div>}
 
       <div style={{display:"flex", gap:12}}>
         <button className="btn" onClick={save} disabled={saving}>{saving ? "Salvataggio..." : "Salva prescrizione"}</button>
@@ -391,20 +609,75 @@ function NewPrescription({ user, catalog, onSaved }) {
 
       <div className="print-area">
         <div className="print-header">
-          <div><h2 style={{margin:0}}>GesPro</h2><div style={{fontSize:12, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div></div>
-          <div style={{fontSize:12}}>{new Date().toLocaleDateString("it-IT")}</div>
+          <div><h2 style={{margin:0, fontSize:18}}>GesPro</h2><div style={{fontSize:10, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div></div>
+          <div style={{fontSize:11, textAlign:"right"}}>
+            {savedCode && <div><strong>{savedCode}</strong></div>}
+            <div>{new Date().toLocaleDateString("it-IT")}</div>
+          </div>
         </div>
-        <h3>Paziente</h3>
-        <p>{patient.nome} {patient.cognome}{patient.dataNascita ? " — nato/a il " + new Date(patient.dataNascita).toLocaleDateString("it-IT") : ""}</p>
-        <h3>Denti coinvolti</h3>
-        <div className="print-teeth">
-          {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessun dente selezionato</em>}
+        <div className="print-columns">
+          <div className="print-col">
+            <div className="print-section">
+              <h5>Paziente</h5>
+              <div>{patient.nome} {patient.cognome}{patient.dataNascita ? " — nato/a il " + new Date(patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
+              <div>Età: {eta || "—"} · Sesso: {sesso || "—"} · Forma viso: {formaViso || "—"}</div>
+            </div>
+            <div className="print-section">
+              <h5>Anamnesi</h5>
+              {anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (
+                <div>
+                  {ANAMNESI_OPTIONS.filter(o=>anamnesi[o.key]).map(o=>o.label).join(", ")}
+                  {anamnesi.note && <div style={{marginTop:4}}><em>{anamnesi.note}</em></div>}
+                </div>
+              )}
+            </div>
+            <div className="print-section">
+              <h5>Denti coinvolti</h5>
+              <div className="print-teeth">
+                {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessuno</em>}
+              </div>
+            </div>
+            <div className="print-section">
+              <h5>Dispositivo richiesto</h5>
+              <ul style={{margin:0, paddingLeft:16}}>
+                {lines.map((l, idx) => (<li key={idx}>{l.code} — {l.description}</li>))}
+              </ul>
+              {descrizioneDispositivo && <div style={{marginTop:4}}>{descrizioneDispositivo}</div>}
+            </div>
+            <div className="print-section">
+              <h5>Materiale</h5>
+              <div>{materiale === "Altro" ? materialeAltro : materiale}</div>
+            </div>
+            <div className="print-section">
+              <h5>Materiale allegato</h5>
+              <div>{materialeAllegato.length ? materialeAllegato.join(", ") : "—"}</div>
+            </div>
+            <div className="print-section">
+              <h5>Impronte</h5>
+              <div>Rilevate il: {impronte.data ? new Date(impronte.data).toLocaleDateString("it-IT") : "—"}</div>
+              <div>Disinfettate con: {impronte.disinfettateCon || "—"}</div>
+              <div>Materiale: {impronte.materialeUtilizzato || "—"}</div>
+            </div>
+            <div className="print-section">
+              <h5>Colore</h5>
+              <div>Colore: {colore || "—"} · Campionario: {campionario || "—"}</div>
+            </div>
+          </div>
+          <div className="print-col">
+            <div className="print-section">
+              <h5>Modulo delle prove</h5>
+              <table className="trial-table">
+                <thead><tr><th>Data prova</th><th>Esito / Note</th><th>Firma</th></tr></thead>
+                <tbody>
+                  <tr><td></td><td></td><td></td></tr>
+                  <tr><td></td><td></td><td></td></tr>
+                  <tr><td></td><td></td><td></td></tr>
+                  <tr><td></td><td></td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <h3 style={{marginTop:20}}>Dispositivi richiesti</h3>
-        <ul>
-          {lines.map((l, idx) => (<li key={idx}>{l.code} — {l.description}</li>))}
-        </ul>
-        <div style={{marginTop:60}}>_____________________<br/><small>Firma</small></div>
       </div>
     </div>
   );
@@ -423,10 +696,11 @@ function PrescriptionList({ user }) {
   return (
     <div className="card">
       <table>
-        <thead><tr><th>Data</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
+        <thead><tr><th>Codice</th><th>Data</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
         <tbody>
           {items.map(p => (
             <tr key={p.id}>
+              <td className="mono">{p.code || "—"}</td>
               <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
               <td>{p.patient.nome} {p.patient.cognome}</td>
               <td>{p.lines.map(l=>l.code).join(", ")}</td>
@@ -438,6 +712,7 @@ function PrescriptionList({ user }) {
   );
 }
 
+// ============ ADMIN: CATALOGO ============
 function AdminCatalog({ catalog, reload }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [form, setForm] = useState({ category:"", code:"", description:"" });
@@ -492,28 +767,60 @@ function AdminCatalog({ catalog, reload }) {
   );
 }
 
+// ============ ADMIN: PRESCRIZIONI (visualizza / elimina) ============
 function AdminAllPrescriptions() {
   const [items, setItems] = useState(null);
-  useEffect(() => {
-    db.collection("prescriptions").orderBy("createdAt", "desc").get().then(snap => {
-      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+  const [expanded, setExpanded] = useState(null);
+
+  const load = async () => {
+    const snap = await db.collection("prescriptions").orderBy("createdAt", "desc").get();
+    setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+  useEffect(() => { load(); }, []);
+
+  const removeItem = async (id) => {
+    if (!window.confirm("Eliminare definitivamente questa prescrizione?")) return;
+    await db.collection("prescriptions").doc(id).delete();
+    if (expanded === id) setExpanded(null);
+    load();
+  };
+
   if (items === null) return <div className="empty">Caricamento...</div>;
   if (items.length === 0) return <div className="empty">Nessuna prescrizione nel sistema.</div>;
   return (
     <div className="card">
       <h3>Tutte le prescrizioni</h3>
       <table>
-        <thead><tr><th>Data</th><th>Utente</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
+        <thead><tr><th>Codice</th><th>Data</th><th>Utente</th><th>Paziente</th><th>Dispositivi</th><th></th></tr></thead>
         <tbody>
           {items.map(p => (
-            <tr key={p.id}>
-              <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
-              <td>{p.ownerEmail}</td>
-              <td>{p.patient.nome} {p.patient.cognome}</td>
-              <td>{p.lines.map(l=>l.code).join(", ")}</td>
-            </tr>
+            <React.Fragment key={p.id}>
+              <tr>
+                <td className="mono">{p.code || "—"}</td>
+                <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
+                <td>{p.ownerEmail}</td>
+                <td>{p.patient.nome} {p.patient.cognome}</td>
+                <td>{p.lines.map(l=>l.code).join(", ")}</td>
+                <td style={{whiteSpace:"nowrap"}}>
+                  <button className="btn secondary small" type="button" onClick={()=>setExpanded(expanded===p.id ? null : p.id)}>{expanded===p.id ? "Chiudi" : "Dettaglio"}</button>{" "}
+                  <button className="btn danger" type="button" onClick={()=>removeItem(p.id)}>Elimina</button>
+                </td>
+              </tr>
+              {expanded === p.id && (
+                <tr><td colSpan="6">
+                  <div className="detail-box">
+                    <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
+                    <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
+                    <div><b>Denti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
+                    <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
+                    <div><b>Materiale:</b> {p.materiale || "—"}</div>
+                    <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
+                    <div><b>Impronte:</b> {p.impronte ? `il ${p.impronte.data || "—"}, disinfettate con ${p.impronte.disinfettateCon || "—"}, materiale ${p.impronte.materialeUtilizzato || "—"}` : "—"}</div>
+                    <div><b>Colore:</b> {p.colore || "—"} · <b>Campionario:</b> {p.campionario || "—"}</div>
+                  </div>
+                </td></tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
@@ -521,12 +828,14 @@ function AdminAllPrescriptions() {
   );
 }
 
+// ============ ADMIN: UTENTI ============
 function AdminUsers({ currentUid }) {
   const [users, setUsers] = useState(null);
   const [form, setForm] = useState({ email:"", role:"user" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
+  const [resetMsg, setResetMsg] = useState({});
 
   const load = async () => {
     const snap = await db.collection("users").orderBy("createdAt", "desc").get();
@@ -554,6 +863,15 @@ function AdminUsers({ currentUid }) {
       setError(traduciErrore(result.error));
     }
     setCreating(false);
+  };
+
+  const sendReset = async (u) => {
+    try {
+      await auth.sendPasswordResetEmail(u.email);
+      setResetMsg(m => ({ ...m, [u.id]: "Email inviata." }));
+    } catch (err) {
+      setResetMsg(m => ({ ...m, [u.id]: "Errore: " + traduciErrore(err.code) }));
+    }
   };
 
   if (users === null) return <div className="empty">Caricamento...</div>;
@@ -587,6 +905,9 @@ function AdminUsers({ currentUid }) {
 
       <div className="card">
         <h3>Utenti registrati</h3>
+        <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
+          Per reimpostare la password di un utente esistente, invia l'email di reset: la persona riceverà un link per sceglierne una nuova.
+        </p>
         <table>
           <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
           <tbody>
@@ -595,12 +916,14 @@ function AdminUsers({ currentUid }) {
                 <td>{u.email}</td>
                 <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
                 <td>{u.createdAt ? new Date(u.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
-                <td>
+                <td style={{whiteSpace:"nowrap"}}>
                   {u.id !== currentUid && (
                     <button className="btn secondary small" onClick={()=>toggleRole(u)} type="button">
                       {u.role === "admin" ? "Rendi utente normale" : "Rendi amministratore"}
                     </button>
-                  )}
+                  )}{" "}
+                  <button className="btn secondary small" type="button" onClick={()=>sendReset(u)}>Invia email reset password</button>
+                  {resetMsg[u.id] && <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>{resetMsg[u.id]}</div>}
                 </td>
               </tr>
             ))}
@@ -679,7 +1002,7 @@ function App() {
       </div>
       <div className="container">
         {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
-        {tab === "new" && <NewPrescription user={user} catalog={catalog} onSaved={()=>{ setTab("list"); setRefreshKey(k=>k+1); }} />}
+        {tab === "new" && <NewPrescription user={user} catalog={catalog} onSaved={()=>setRefreshKey(k=>k+1)} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
         {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} />}
       </div>
