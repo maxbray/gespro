@@ -40,7 +40,7 @@
   input, select{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); }
   input:focus, select:focus{ outline:2px solid var(--teal); outline-offset:1px; }
   .row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-  .row3{ display:grid; grid-template-columns:1fr 1fr auto; gap:16px; margin-bottom:16px; align-items:end; }
+  .row3{ display:grid; grid-template-columns:1fr 2fr auto; gap:16px; margin-bottom:16px; align-items:end; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600; font-size:14px; background:var(--teal); color:#fff; transition:background .15s; }
   .btn:hover{ background:var(--teal-dark); }
   .btn.secondary{ background:transparent; color:var(--teal); border:1px solid var(--teal); }
@@ -55,21 +55,25 @@
   .auth-note{ text-align:center; margin-top:16px; font-size:13px; color:var(--muted); }
 
   .dental-chart{ text-align:center; }
-  .arch{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-  .tooth{ width:34px; height:34px; border-radius:6px; border:1px solid var(--border); background:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; font-family:'IBM Plex Mono',monospace; color:var(--muted); transition:all .1s; }
-  .tooth:hover{ border-color:var(--teal); }
-  .tooth.selected{ background:var(--teal); color:#fff; border-color:var(--teal); }
+  .arch{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .tooth-btn{ background:none; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; padding:2px; }
+  .tooth-btn svg{ width:26px; height:32px; transition:all .12s; }
+  .tooth-btn .tooth-shape{ fill:#fff; stroke:var(--border); stroke-width:1.5; }
+  .tooth-btn:hover .tooth-shape{ stroke:var(--teal); }
+  .tooth-btn.selected .tooth-shape{ fill:var(--teal); stroke:var(--teal); }
+  .tooth-num{ font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--muted); }
+  .tooth-btn.selected .tooth-num{ color:var(--teal-dark); font-weight:700; }
   .arch-label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
   .midline{ width:0; border-left:1px dashed var(--border); margin:0 4px; }
 
   table{ width:100%; border-collapse:collapse; font-size:14px; }
   th{ text-align:left; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; padding:8px; border-bottom:1px solid var(--border); }
   td{ padding:10px 8px; border-bottom:1px solid var(--border); }
-  .total-row td{ font-weight:700; border-bottom:none; font-family:'IBM Plex Mono',monospace; }
   .role-pill{ font-size:11px; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   .role-pill.admin{ background:var(--amber); color:#fff; }
   .role-pill.user{ background:var(--border); color:var(--muted); }
   .device-tag{ display:inline-block; background:#EAF3F2; color:var(--teal-dark); padding:4px 10px; border-radius:6px; font-size:13px; margin:0 6px 6px 0; }
+  .code-chip{ font-family:'IBM Plex Mono',monospace; font-size:11px; background:var(--border); padding:1px 6px; border-radius:4px; margin-right:6px; }
 
   .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
   .print-area{ display:none; }
@@ -104,16 +108,16 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-const SEED_PRICE_LIST = [
-  { category: "Protesi fissa", name: "Corona in ceramica integrale", price: 180 },
-  { category: "Protesi fissa", name: "Corona in metallo-ceramica", price: 140 },
-  { category: "Protesi fissa", name: "Ponte 3 elementi", price: 420 },
-  { category: "Protesi mobile", name: "Protesi totale superiore", price: 350 },
-  { category: "Protesi mobile", name: "Protesi scheletrata", price: 480 },
-  { category: "Ortodonzia", name: "Mascherina trasparente", price: 220 },
-  { category: "Ortodonzia", name: "Apparecchio Herbst", price: 390 },
-  { category: "Bite / Occlusione", name: "Bite in resina rigida", price: 120 },
-  { category: "Bite / Occlusione", name: "Bite molle notturno", price: 90 },
+const SEED_CATALOG = [
+  { category: "Protesi fissa", code: "PF-001", description: "Corona in ceramica integrale" },
+  { category: "Protesi fissa", code: "PF-002", description: "Corona in metallo-ceramica" },
+  { category: "Protesi fissa", code: "PF-003", description: "Ponte 3 elementi" },
+  { category: "Protesi mobile", code: "PM-001", description: "Protesi totale superiore" },
+  { category: "Protesi mobile", code: "PM-002", description: "Protesi scheletrata" },
+  { category: "Ortodonzia", code: "OR-001", description: "Mascherina trasparente" },
+  { category: "Ortodonzia", code: "OR-002", description: "Apparecchio Herbst" },
+  { category: "Bite / Occlusione", code: "BT-001", description: "Bite in resina rigida" },
+  { category: "Bite / Occlusione", code: "BT-002", description: "Bite molle notturno" },
 ];
 
 const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
@@ -146,12 +150,29 @@ async function createUserAsAdmin(email, password, role) {
   }
 }
 
+// Icona a forma di dente, colorata in base allo stato di selezione tramite CSS (.selected)
+function ToothIcon() {
+  return (
+    <svg viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+      <path className="tooth-shape" d="M12 2c-2.2 0-3.4 1.1-4.6 1.1C5.8 3.1 4 2 2.6 3.4 1.2 4.8 1.6 7.6 2 10c.5 3 1.3 6.2 2.6 9.5.7 1.8 1.6 3.6 2.9 3.6 1.4 0 1.6-2.3 1.8-4.3.2-1.7.5-3.3 1.7-3.3s1.5 1.6 1.7 3.3c.2 2 .4 4.3 1.8 4.3 1.3 0 2.2-1.8 2.9-3.6C18.7 16.2 19.5 13 20 10c.4-2.4.8-5.2-.6-6.6C18 2 16.2 3.1 14.6 3.1 13.4 3.1 12 2 12 2z"/>
+    </svg>
+  );
+}
+
 function DentalChart({ selected, onToggle }) {
   const renderArch = (left, right) => (
     <div className="arch">
-      {left.map(n => (<div key={n} className={"tooth" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>{n}</div>))}
+      {left.map(n => (
+        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
+          <ToothIcon /><span className="tooth-num">{n}</span>
+        </button>
+      ))}
       <div className="midline"></div>
-      {right.map(n => (<div key={n} className={"tooth" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>{n}</div>))}
+      {right.map(n => (
+        <button key={n} type="button" className={"tooth-btn" + (selected.includes(n) ? " selected" : "")} onClick={() => onToggle(n)}>
+          <ToothIcon /><span className="tooth-num">{n}</span>
+        </button>
+      ))}
     </div>
   );
   return (
@@ -261,30 +282,29 @@ function ChangePassword({ onClose }) {
   );
 }
 
-function NewPrescription({ user, priceList, onSaved }) {
-  const categories = [...new Set(priceList.map(i => i.category))];
+function NewPrescription({ user, catalog, onSaved }) {
+  const categories = [...new Set(catalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
   const [teeth, setTeeth] = useState([]);
   const [category, setCategory] = useState(categories[0] || "");
-  const [selectedItem, setSelectedItem] = useState("");
+  const [selectedCode, setSelectedCode] = useState("");
   const [lines, setLines] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const items = priceList.filter(i => i.category === category);
-    setSelectedItem(items[0] ? items[0].name : "");
-  }, [category, priceList]);
+    const items = catalog.filter(i => i.category === category);
+    setSelectedCode(items[0] ? items[0].code : "");
+  }, [category, catalog]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
-  const currentCategoryItems = priceList.filter(i => i.category === category);
+  const currentCategoryItems = catalog.filter(i => i.category === category);
 
   const addLine = () => {
-    const item = priceList.find(i => i.category === category && i.name === selectedItem);
-    if (item) setLines(l => [...l, { category: item.category, name: item.name, price: item.price }]);
+    const item = catalog.find(i => i.category === category && i.code === selectedCode);
+    if (item) setLines(l => [...l, { category: item.category, code: item.code, description: item.description }]);
   };
   const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
-  const total = lines.reduce((s,l)=>s+l.price, 0);
   const canSave = patient.nome && patient.cognome && lines.length > 0;
 
   const save = async () => {
@@ -294,7 +314,7 @@ function NewPrescription({ user, priceList, onSaved }) {
     try {
       await db.collection("prescriptions").add({
         ownerId: user.uid, ownerEmail: user.email,
-        patient, teeth, lines, total,
+        patient, teeth, lines,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       onSaved();
@@ -309,8 +329,8 @@ function NewPrescription({ user, priceList, onSaved }) {
     window.print();
   };
 
-  if (priceList.length === 0) {
-    return <div className="card"><div className="info">Il listino è vuoto. Chiedi a un amministratore di aggiungere i dispositivi nel pannello "Amministrazione".</div></div>;
+  if (catalog.length === 0) {
+    return <div className="card"><div className="info">Il catalogo è vuoto. Chiedi a un amministratore di aggiungere i dispositivi nel pannello "Amministrazione".</div></div>;
   }
 
   return (
@@ -345,8 +365,8 @@ function NewPrescription({ user, priceList, onSaved }) {
           </div>
           <div>
             <label>Dispositivo</label>
-            <select value={selectedItem} onChange={e=>setSelectedItem(e.target.value)}>
-              {currentCategoryItems.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+            <select value={selectedCode} onChange={e=>setSelectedCode(e.target.value)}>
+              {currentCategoryItems.map(i => <option key={i.id} value={i.code}>{i.code} — {i.description}</option>)}
             </select>
           </div>
         </div>
@@ -356,7 +376,7 @@ function NewPrescription({ user, priceList, onSaved }) {
           <div style={{marginTop:18}}>
             {lines.map((l, idx) => (
               <span key={idx} className="device-tag">
-                {l.name}
+                <span className="code-chip">{l.code}</span>{l.description}
                 <span style={{marginLeft:8, cursor:"pointer", fontWeight:700}} onClick={()=>removeLine(idx)}>×</span>
               </span>
             ))}
@@ -382,7 +402,7 @@ function NewPrescription({ user, priceList, onSaved }) {
         </div>
         <h3 style={{marginTop:20}}>Dispositivi richiesti</h3>
         <ul>
-          {lines.map((l, idx) => (<li key={idx}>{l.name}</li>))}
+          {lines.map((l, idx) => (<li key={idx}>{l.code} — {l.description}</li>))}
         </ul>
         <div style={{marginTop:60}}>_____________________<br/><small>Firma</small></div>
       </div>
@@ -409,7 +429,7 @@ function PrescriptionList({ user }) {
             <tr key={p.id}>
               <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
               <td>{p.patient.nome} {p.patient.cognome}</td>
-              <td>{p.lines.map(l=>l.name).join(", ")}</td>
+              <td>{p.lines.map(l=>l.code).join(", ")}</td>
             </tr>
           ))}
         </tbody>
@@ -418,25 +438,25 @@ function PrescriptionList({ user }) {
   );
 }
 
-function AdminPriceList({ priceList, reload }) {
-  const categories = [...new Set(priceList.map(i => i.category))];
-  const [form, setForm] = useState({ category:"", name:"", price:"" });
+function AdminCatalog({ catalog, reload }) {
+  const categories = [...new Set(catalog.map(i => i.category))];
+  const [form, setForm] = useState({ category:"", code:"", description:"" });
   const [saving, setSaving] = useState(false);
 
   const addItem = async () => {
-    if (!form.category || !form.name || !form.price) return;
+    if (!form.category || !form.code || !form.description) return;
     setSaving(true);
-    await db.collection("priceList").add({ category: form.category, name: form.name, price: parseFloat(form.price) });
-    setForm({ category:"", name:"", price:"" });
+    await db.collection("catalog").add({ category: form.category, code: form.code, description: form.description });
+    setForm({ category:"", code:"", description:"" });
     await reload();
     setSaving(false);
   };
-  const removeItem = async (id) => { await db.collection("priceList").doc(id).delete(); await reload(); };
+  const removeItem = async (id) => { await db.collection("catalog").doc(id).delete(); await reload(); };
 
   const seed = async () => {
     setSaving(true);
     const batch = db.batch();
-    SEED_PRICE_LIST.forEach(item => { const ref = db.collection("priceList").doc(); batch.set(ref, item); });
+    SEED_CATALOG.forEach(item => { const ref = db.collection("catalog").doc(); batch.set(ref, item); });
     await batch.commit();
     await reload();
     setSaving(false);
@@ -444,27 +464,25 @@ function AdminPriceList({ priceList, reload }) {
 
   return (
     <div className="card">
-      <h3>Listino prezzi</h3>
-      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Visibile solo a te. Gli utenti normali vedono solo il nome dei dispositivi, mai il prezzo.</p>
-      {priceList.length === 0 && (
-        <div className="info">Il listino è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un listino di esempio</a>, poi modifica liberamente le voci.</div>
+      <h3>Catalogo dispositivi</h3>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Codice prodotto e descrizione, nessun prezzo.</p>
+      {catalog.length === 0 && (
+        <div className="info">Il catalogo è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un catalogo di esempio</a>, poi modifica liberamente le voci.</div>
       )}
       <div className="row3">
         <div><label>Categoria</label><input list="cat-list" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} placeholder="Es. Protesi fissa" />
           <datalist id="cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
         </div>
-        <div><label>Nome dispositivo</label><input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} placeholder="Es. Corona in ceramica" /></div>
-        <div style={{display:"flex", gap:8}}>
-          <div style={{width:100}}><label>Prezzo €</label><input type="number" value={form.price} onChange={e=>setForm({...form, price:e.target.value})} /></div>
-          <button className="btn" style={{height:42, alignSelf:"end"}} onClick={addItem} disabled={saving} type="button">+ Aggiungi</button>
-        </div>
+        <div><label>Codice prodotto</label><input value={form.code} onChange={e=>setForm({...form, code:e.target.value})} placeholder="Es. PF-004" /></div>
+        <div><label>Descrizione</label><input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} placeholder="Es. Corona in ceramica" /></div>
       </div>
+      <button className="btn" onClick={addItem} disabled={saving} type="button" style={{marginBottom:18}}>+ Aggiungi</button>
       <table>
-        <thead><tr><th>Categoria</th><th>Dispositivo</th><th>Prezzo</th><th></th></tr></thead>
+        <thead><tr><th>Categoria</th><th>Codice</th><th>Descrizione</th><th></th></tr></thead>
         <tbody>
-          {priceList.map(i => (
+          {catalog.map(i => (
             <tr key={i.id}>
-              <td>{i.category}</td><td>{i.name}</td><td className="mono">€{i.price.toFixed(2)}</td>
+              <td>{i.category}</td><td className="mono">{i.code}</td><td>{i.description}</td>
               <td><button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button></td>
             </tr>
           ))}
@@ -487,15 +505,14 @@ function AdminAllPrescriptions() {
     <div className="card">
       <h3>Tutte le prescrizioni</h3>
       <table>
-        <thead><tr><th>Data</th><th>Utente</th><th>Paziente</th><th>Dispositivi</th><th>Totale</th></tr></thead>
+        <thead><tr><th>Data</th><th>Utente</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
         <tbody>
           {items.map(p => (
             <tr key={p.id}>
               <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
               <td>{p.ownerEmail}</td>
               <td>{p.patient.nome} {p.patient.cognome}</td>
-              <td>{p.lines.map(l=>l.name).join(", ")}</td>
-              <td className="mono">€{p.total.toFixed(2)}</td>
+              <td>{p.lines.map(l=>l.code).join(", ")}</td>
             </tr>
           ))}
         </tbody>
@@ -594,16 +611,16 @@ function AdminUsers({ currentUid }) {
   );
 }
 
-function AdminPanel({ user, priceList, reloadPriceList }) {
-  const [sub, setSub] = useState("listino");
+function AdminPanel({ user, catalog, reloadCatalog }) {
+  const [sub, setSub] = useState("catalogo");
   return (
     <div>
       <div className="tabs" style={{marginBottom:16}}>
-        <div className={"tab" + (sub==="listino" ? " active" : "")} onClick={()=>setSub("listino")}>Listino</div>
+        <div className={"tab" + (sub==="catalogo" ? " active" : "")} onClick={()=>setSub("catalogo")}>Catalogo</div>
         <div className={"tab" + (sub==="prescrizioni" ? " active" : "")} onClick={()=>setSub("prescrizioni")}>Tutte le prescrizioni</div>
         <div className={"tab" + (sub==="utenti" ? " active" : "")} onClick={()=>setSub("utenti")}>Utenti</div>
       </div>
-      {sub === "listino" && <AdminPriceList priceList={priceList} reload={reloadPriceList} />}
+      {sub === "catalogo" && <AdminCatalog catalog={catalog} reload={reloadCatalog} />}
       {sub === "prescrizioni" && <AdminAllPrescriptions />}
       {sub === "utenti" && <AdminUsers currentUid={user.uid} />}
     </div>
@@ -615,12 +632,12 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [tab, setTab] = useState("new");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [priceList, setPriceList] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [showChangePw, setShowChangePw] = useState(false);
 
-  const loadPriceList = async () => {
-    const snap = await db.collection("priceList").orderBy("category").get();
-    setPriceList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  const loadCatalog = async () => {
+    const snap = await db.collection("catalog").orderBy("category").get();
+    setCatalog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
@@ -629,7 +646,7 @@ function App() {
       if (u) {
         const doc = await db.collection("users").doc(u.uid).get();
         setProfile(doc.exists ? doc.data() : { role: "user" });
-        loadPriceList();
+        loadCatalog();
       } else {
         setProfile(null);
       }
@@ -662,9 +679,9 @@ function App() {
       </div>
       <div className="container">
         {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
-        {tab === "new" && <NewPrescription user={user} priceList={priceList} onSaved={()=>{ setTab("list"); setRefreshKey(k=>k+1); }} />}
+        {tab === "new" && <NewPrescription user={user} catalog={catalog} onSaved={()=>{ setTab("list"); setRefreshKey(k=>k+1); }} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
-        {tab === "admin" && isAdmin && <AdminPanel user={user} priceList={priceList} reloadPriceList={loadPriceList} />}
+        {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} />}
       </div>
     </div>
   );
