@@ -128,6 +128,7 @@
   };
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  auth.languageCode = "it"; // email automatiche di Firebase (es. reset password) in italiano
   const db = firebase.firestore();
 </script>
 
