@@ -693,6 +693,7 @@ function NewPrescription({ user, catalog, onSaved }) {
 function PrescriptionList({ user }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(null);
   useEffect(() => {
     // Nota: niente orderBy nella query, per evitare di dover creare un indice composito su Firestore.
     // L'ordinamento per data viene fatto qui lato app.
@@ -710,15 +711,38 @@ function PrescriptionList({ user }) {
   return (
     <div className="card">
       <table>
-        <thead><tr><th>Codice</th><th>Data</th><th>Paziente</th><th>Dispositivi</th></tr></thead>
+        <thead><tr><th>Codice</th><th>Data</th><th>Paziente</th><th>Dispositivi</th><th></th></tr></thead>
         <tbody>
           {items.map(p => (
-            <tr key={p.id}>
-              <td className="mono">{p.code || "—"}</td>
-              <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
-              <td>{p.patient.nome} {p.patient.cognome}</td>
-              <td>{p.lines.map(l=>l.code).join(", ")}</td>
-            </tr>
+            <React.Fragment key={p.id}>
+              <tr>
+                <td className="mono">{p.code || "—"}</td>
+                <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
+                <td>{p.patient.nome} {p.patient.cognome}</td>
+                <td>{p.lines.map(l=>l.code).join(", ")}</td>
+                <td>
+                  <button className="btn secondary small" type="button" onClick={()=>setExpanded(expanded===p.id ? null : p.id)}>
+                    {expanded===p.id ? "Chiudi" : "Dettaglio"}
+                  </button>
+                </td>
+              </tr>
+              {expanded === p.id && (
+                <tr><td colSpan="5">
+                  <div className="detail-box">
+                    <div><b>Paziente:</b> {p.patient.nome} {p.patient.cognome}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
+                    <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
+                    <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
+                    <div><b>Denti coinvolti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
+                    <div><b>Dispositivi:</b> {p.lines.map(l=>`${l.code} — ${l.description}`).join("; ")}</div>
+                    <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
+                    <div><b>Materiale:</b> {p.materiale || "—"}</div>
+                    <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
+                    <div><b>Impronte:</b> {p.impronte ? `il ${p.impronte.data || "—"}, disinfettate con ${p.impronte.disinfettateCon || "—"}, materiale ${p.impronte.materialeUtilizzato || "—"}` : "—"}</div>
+                    <div><b>Colore:</b> {p.colore || "—"} · <b>Campionario:</b> {p.campionario || "—"}</div>
+                  </div>
+                </td></tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
