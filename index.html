@@ -378,6 +378,90 @@ function ChangePassword({ onClose }) {
 // ============ NUOVA PRESCRIZIONE ============
 const DEFAULT_ANAMNESI = { nullaDaSegnalare:true, allergie:false, disfunzioniArticolari:false, altriDispositivi:false, handicapPsicomotori:false, bruxista:false, malattieInfettive:false, altro:false, note:"" };
 
+// ============ AREA DI STAMPA (condivisa: nuova prescrizione + pannello admin) ============
+function PrintablePrescription({ p }) {
+  const anamnesi = p.anamnesi || { nullaDaSegnalare: true };
+  const altreInfo = p.altreInfo || {};
+  const teeth = p.teeth || [];
+  const lines = p.lines || [];
+  const materialeAllegato = p.materialeAllegato || [];
+  const impronte = p.impronte || {};
+  return (
+    <div className="print-area">
+      <div className="print-header">
+        <div><h2 style={{margin:0, fontSize:18}}>GesPro</h2><div style={{fontSize:10, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div></div>
+        <div style={{fontSize:11, textAlign:"right"}}>
+          {p.code && <div><strong>{p.code}</strong></div>}
+          <div>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT")}</div>
+        </div>
+      </div>
+      <div className="print-columns">
+        <div className="print-col">
+          <div className="print-section">
+            <h5>Paziente</h5>
+            <div>{p.patient.nome} {p.patient.cognome}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
+            <div>Età: {altreInfo.eta || "—"} · Sesso: {altreInfo.sesso || "—"} · Forma viso: {altreInfo.formaViso || "—"}</div>
+          </div>
+          <div className="print-section">
+            <h5>Anamnesi</h5>
+            {anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (
+              <div>
+                {ANAMNESI_OPTIONS.filter(o=>anamnesi[o.key]).map(o=>o.label).join(", ")}
+                {anamnesi.note && <div style={{marginTop:4}}><em>{anamnesi.note}</em></div>}
+              </div>
+            )}
+          </div>
+          <div className="print-section">
+            <h5>Denti coinvolti</h5>
+            <div className="print-teeth">
+              {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessuno</em>}
+            </div>
+          </div>
+          <div className="print-section">
+            <h5>Dispositivo richiesto</h5>
+            <ul style={{margin:0, paddingLeft:16}}>
+              {lines.map((l, idx) => (<li key={idx}>{l.code} — {l.description}</li>))}
+            </ul>
+            {p.descrizioneDispositivo && <div style={{marginTop:4}}>{p.descrizioneDispositivo}</div>}
+          </div>
+          <div className="print-section">
+            <h5>Materiale</h5>
+            <div>{p.materiale || "—"}</div>
+          </div>
+          <div className="print-section">
+            <h5>Materiale allegato</h5>
+            <div>{materialeAllegato.length ? materialeAllegato.join(", ") : "—"}</div>
+          </div>
+          <div className="print-section">
+            <h5>Impronte</h5>
+            <div>Rilevate il: {impronte.data ? new Date(impronte.data).toLocaleDateString("it-IT") : "—"}</div>
+            <div>Disinfettate con: {impronte.disinfettateCon || "—"}</div>
+            <div>Materiale: {impronte.materialeUtilizzato || "—"}</div>
+          </div>
+          <div className="print-section">
+            <h5>Colore</h5>
+            <div>Colore: {p.colore || "—"} · Campionario: {p.campionario || "—"}</div>
+          </div>
+        </div>
+        <div className="print-col">
+          <div className="print-section">
+            <h5>Modulo delle prove</h5>
+            <table className="trial-table">
+              <thead><tr><th>Data prova</th><th>Esito / Note</th><th>Firma</th></tr></thead>
+              <tbody>
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NewPrescription({ user, catalog, onSaved }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
@@ -614,78 +698,16 @@ function NewPrescription({ user, catalog, onSaved }) {
         <button className="btn secondary" onClick={doPrint} type="button">Stampa / Salva PDF</button>
       </div>
 
-      <div className="print-area">
-        <div className="print-header">
-          <div><h2 style={{margin:0, fontSize:18}}>GesPro</h2><div style={{fontSize:10, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div></div>
-          <div style={{fontSize:11, textAlign:"right"}}>
-            {savedCode && <div><strong>{savedCode}</strong></div>}
-            <div>{new Date().toLocaleDateString("it-IT")}</div>
-          </div>
-        </div>
-        <div className="print-columns">
-          <div className="print-col">
-            <div className="print-section">
-              <h5>Paziente</h5>
-              <div>{patient.nome} {patient.cognome}{patient.dataNascita ? " — nato/a il " + new Date(patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
-              <div>Età: {eta || "—"} · Sesso: {sesso || "—"} · Forma viso: {formaViso || "—"}</div>
-            </div>
-            <div className="print-section">
-              <h5>Anamnesi</h5>
-              {anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (
-                <div>
-                  {ANAMNESI_OPTIONS.filter(o=>anamnesi[o.key]).map(o=>o.label).join(", ")}
-                  {anamnesi.note && <div style={{marginTop:4}}><em>{anamnesi.note}</em></div>}
-                </div>
-              )}
-            </div>
-            <div className="print-section">
-              <h5>Denti coinvolti</h5>
-              <div className="print-teeth">
-                {teeth.length ? teeth.map(t => <div key={t} className="print-tooth">{t}</div>) : <em>Nessuno</em>}
-              </div>
-            </div>
-            <div className="print-section">
-              <h5>Dispositivo richiesto</h5>
-              <ul style={{margin:0, paddingLeft:16}}>
-                {lines.map((l, idx) => (<li key={idx}>{l.code} — {l.description}</li>))}
-              </ul>
-              {descrizioneDispositivo && <div style={{marginTop:4}}>{descrizioneDispositivo}</div>}
-            </div>
-            <div className="print-section">
-              <h5>Materiale</h5>
-              <div>{materiale === "Altro" ? materialeAltro : materiale}</div>
-            </div>
-            <div className="print-section">
-              <h5>Materiale allegato</h5>
-              <div>{materialeAllegato.length ? materialeAllegato.join(", ") : "—"}</div>
-            </div>
-            <div className="print-section">
-              <h5>Impronte</h5>
-              <div>Rilevate il: {impronte.data ? new Date(impronte.data).toLocaleDateString("it-IT") : "—"}</div>
-              <div>Disinfettate con: {impronte.disinfettateCon || "—"}</div>
-              <div>Materiale: {impronte.materialeUtilizzato || "—"}</div>
-            </div>
-            <div className="print-section">
-              <h5>Colore</h5>
-              <div>Colore: {colore || "—"} · Campionario: {campionario || "—"}</div>
-            </div>
-          </div>
-          <div className="print-col">
-            <div className="print-section">
-              <h5>Modulo delle prove</h5>
-              <table className="trial-table">
-                <thead><tr><th>Data prova</th><th>Esito / Note</th><th>Firma</th></tr></thead>
-                <tbody>
-                  <tr><td></td><td></td><td></td></tr>
-                  <tr><td></td><td></td><td></td></tr>
-                  <tr><td></td><td></td><td></td></tr>
-                  <tr><td></td><td></td><td></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PrintablePrescription p={{
+        code: savedCode,
+        patient, teeth, lines,
+        anamnesi,
+        altreInfo: { eta, sesso, formaViso },
+        descrizioneDispositivo,
+        materiale: materiale === "Altro" ? materialeAltro : materiale,
+        materialeAllegato,
+        impronte, colore, campionario,
+      }} />
     </div>
   );
 }
@@ -694,6 +716,7 @@ function PrescriptionList({ user }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(null);
+  const [printItem, setPrintItem] = useState(null);
   useEffect(() => {
     // Nota: niente orderBy nella query, per evitare di dover creare un indice composito su Firestore.
     // L'ordinamento per data viene fatto qui lato app.
@@ -704,6 +727,17 @@ function PrescriptionList({ user }) {
         setItems(list);
       })
       .catch(err => setError("Errore nel caricamento: " + err.message));
+  }, []);
+  useEffect(() => {
+    if (printItem) {
+      const t = setTimeout(() => window.print(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [printItem]);
+  useEffect(() => {
+    const handler = () => setPrintItem(null);
+    window.addEventListener("afterprint", handler);
+    return () => window.removeEventListener("afterprint", handler);
   }, []);
   if (error) return <div className="error">{error}</div>;
   if (items === null) return <div className="empty">Caricamento...</div>;
@@ -720,10 +754,11 @@ function PrescriptionList({ user }) {
                 <td>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
                 <td>{p.patient.nome} {p.patient.cognome}</td>
                 <td>{p.lines.map(l=>l.code).join(", ")}</td>
-                <td>
+                <td style={{whiteSpace:"nowrap"}}>
                   <button className="btn secondary small" type="button" onClick={()=>setExpanded(expanded===p.id ? null : p.id)}>
                     {expanded===p.id ? "Chiudi" : "Dettaglio"}
-                  </button>
+                  </button>{" "}
+                  <button className="btn secondary small" type="button" onClick={()=>setPrintItem(p)}>Stampa</button>
                 </td>
               </tr>
               {expanded === p.id && (
@@ -746,6 +781,7 @@ function PrescriptionList({ user }) {
           ))}
         </tbody>
       </table>
+      {printItem && <PrintablePrescription p={printItem} />}
     </div>
   );
 }
@@ -809,12 +845,26 @@ function AdminCatalog({ catalog, reload }) {
 function AdminAllPrescriptions() {
   const [items, setItems] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [printItem, setPrintItem] = useState(null);
 
   const load = async () => {
     const snap = await db.collection("prescriptions").orderBy("createdAt", "desc").get();
     setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (printItem) {
+      const t = setTimeout(() => window.print(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [printItem]);
+
+  useEffect(() => {
+    const handler = () => setPrintItem(null);
+    window.addEventListener("afterprint", handler);
+    return () => window.removeEventListener("afterprint", handler);
+  }, []);
 
   const removeItem = async (id) => {
     if (!window.confirm("Eliminare definitivamente questa prescrizione?")) return;
@@ -841,6 +891,7 @@ function AdminAllPrescriptions() {
                 <td>{p.lines.map(l=>l.code).join(", ")}</td>
                 <td style={{whiteSpace:"nowrap"}}>
                   <button className="btn secondary small" type="button" onClick={()=>setExpanded(expanded===p.id ? null : p.id)}>{expanded===p.id ? "Chiudi" : "Dettaglio"}</button>{" "}
+                  <button className="btn secondary small" type="button" onClick={()=>setPrintItem(p)}>Stampa</button>{" "}
                   <button className="btn danger" type="button" onClick={()=>removeItem(p.id)}>Elimina</button>
                 </td>
               </tr>
@@ -862,6 +913,7 @@ function AdminAllPrescriptions() {
           ))}
         </tbody>
       </table>
+      {printItem && <PrintablePrescription p={printItem} />}
     </div>
   );
 }
