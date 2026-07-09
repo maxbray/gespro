@@ -180,14 +180,14 @@ function generatePassword() {
   return out;
 }
 
-async function createUserAsAdmin(email, password, role) {
+async function createUserAsAdmin(email, password, role, codiceUtente) {
   let secondaryApp;
   try {
     secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary-" + Date.now());
     const secondaryAuth = secondaryApp.auth();
     const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     await db.collection("users").doc(cred.user.uid).set({
-      email, role, createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email, role, codiceUtente: codiceUtente || "", createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await secondaryAuth.signOut();
     await secondaryApp.delete();
@@ -925,7 +925,7 @@ function AdminAllPrescriptions() {
 // ============ ADMIN: UTENTI ============
 function AdminUsers({ currentUid }) {
   const [users, setUsers] = useState(null);
-  const [form, setForm] = useState({ email:"", role:"user" });
+  const [form, setForm] = useState({ email:"", role:"user", codiceUtente:"" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
@@ -946,12 +946,13 @@ function AdminUsers({ currentUid }) {
   const addUser = async () => {
     setError(""); setCreated(null);
     if (!form.email) { setError("Inserisci un'email."); return; }
+    if (!form.codiceUtente) { setError("Inserisci il codice utente (dal gestionale)."); return; }
     setCreating(true);
     const password = generatePassword();
-    const result = await createUserAsAdmin(form.email, password, form.role);
+    const result = await createUserAsAdmin(form.email, password, form.role, form.codiceUtente);
     if (result.success) {
       setCreated({ email: form.email, password });
-      setForm({ email:"", role:"user" });
+      setForm({ email:"", role:"user", codiceUtente:"" });
       load();
     } else {
       setError(traduciErrore(result.error));
@@ -982,8 +983,9 @@ function AdminUsers({ currentUid }) {
             <small>Consiglia alla persona di cambiarla dopo il primo accesso (menu "Cambia password" in alto).</small>
           </div>
         )}
-        <div className="row3">
+        <div className="row-auto">
           <div><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="collega@esempio.it" /></div>
+          <div><label>Codice utente (gestionale)</label><input value={form.codiceUtente} onChange={e=>setForm({...form, codiceUtente:e.target.value})} placeholder="Es. UT-0042" /></div>
           <div>
             <label>Ruolo</label>
             <select value={form.role} onChange={e=>setForm({...form, role:e.target.value})}>
@@ -1003,11 +1005,12 @@ function AdminUsers({ currentUid }) {
           Per reimpostare la password di un utente esistente, invia l'email di reset: la persona riceverà un link per sceglierne una nuova.
         </p>
         <table>
-          <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
+          <thead><tr><th>Email</th><th>Codice utente</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
           <tbody>
             {users.map(u => (
               <tr key={u.id}>
                 <td>{u.email}</td>
+                <td className="mono">{u.codiceUtente || "—"}</td>
                 <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
                 <td>{u.createdAt ? new Date(u.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
                 <td style={{whiteSpace:"nowrap"}}>
