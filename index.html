@@ -100,17 +100,21 @@
   @media print{
     body *{ visibility:hidden; }
     .print-area, .print-area *{ visibility:visible; }
-    .print-area{ display:block; position:absolute; top:0; left:0; width:100%; padding:14px; font-size:11px; }
-    .print-header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:8px; margin-bottom:12px; }
-    .print-columns{ display:flex; gap:16px; }
+    .print-area{ display:flex; flex-direction:column; position:absolute; top:0; left:0; width:100%; height:277mm; padding:14px; font-size:11px; }
+    .print-header{ flex:0 0 auto; display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:8px; margin-bottom:12px; }
+    .print-columns{ flex:1 1 auto; display:flex; gap:16px; min-height:0; }
     .print-col{ width:50%; }
+    .print-col-right{ display:flex; flex-direction:column; }
     .print-section{ margin-bottom:10px; border:1px solid #ccc; border-radius:6px; padding:8px; }
     .print-section h5{ margin:0 0 6px 0; font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #ccc; padding-bottom:4px; }
+    .trial-section{ flex:1 1 auto; display:flex; flex-direction:column; margin-bottom:0; }
     .print-teeth{ display:flex; flex-wrap:wrap; gap:4px; }
     .print-tooth{ border:1px solid #12242B; border-radius:4px; padding:2px 6px; font-family:monospace; font-size:11px; }
-    .trial-table{ width:100%; border-collapse:collapse; }
-    .trial-table th, .trial-table td{ border:1px solid #999; padding:6px; font-size:10px; }
-    .trial-table td{ height:34px; }
+    .trial-table{ width:100%; height:100%; border-collapse:collapse; table-layout:fixed; flex:1 1 auto; }
+    .trial-table th, .trial-table td{ border:1px solid #999; padding:6px; font-size:10px; vertical-align:top; }
+    .trial-table th:nth-child(1), .trial-table td:nth-child(1){ width:22%; }
+    .trial-table th:nth-child(3), .trial-table td:nth-child(3){ width:22%; }
+    .trial-table tbody tr{ height:25%; }
   }
 </style>
 </head>
@@ -443,8 +447,8 @@ function PrintablePrescription({ p }) {
             <div>Colore: {p.colore || "—"} · Campionario: {p.campionario || "—"}</div>
           </div>
         </div>
-        <div className="print-col">
-          <div className="print-section">
+        <div className="print-col print-col-right">
+          <div className="print-section trial-section">
             <h5>Modulo delle prove</h5>
             <table className="trial-table">
               <thead><tr><th>Data prova</th><th>Esito / Note</th><th>Firma</th></tr></thead>
