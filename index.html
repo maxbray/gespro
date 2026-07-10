@@ -180,14 +180,16 @@ function generatePassword() {
   return out;
 }
 
-async function createUserAsAdmin(email, password, role, codiceUtente) {
+async function createUserAsAdmin(email, password, role, codiceUtente, anagrafica) {
   let secondaryApp;
   try {
     secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary-" + Date.now());
     const secondaryAuth = secondaryApp.auth();
     const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     await db.collection("users").doc(cred.user.uid).set({
-      email, role, codiceUtente: codiceUtente || "", createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email, role, codiceUtente: codiceUtente || "",
+      tipoAnagrafica: anagrafica.tipo, nome: anagrafica.nome || "", cognome: anagrafica.cognome || "", ragioneSociale: anagrafica.ragioneSociale || "",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await secondaryAuth.signOut();
     await secondaryApp.delete();
@@ -923,13 +925,44 @@ function AdminAllPrescriptions() {
 }
 
 // ============ ADMIN: UTENTI ============
+function nominativo(u) {
+  if (u.tipoAnagrafica === "azienda") return u.ragioneSociale || "—";
+  if (u.nome || u.cognome) return `${u.nome || ""} ${u.cognome || ""}`.trim();
+  return "—";
+}
+
+function AnagraficaFields({ value, onChange }) {
+  return (
+    <div>
+      <div style={{display:"flex", gap:8, marginBottom:12}}>
+        <button type="button" className={"btn " + (value.tipo==="persona" ? "" : "secondary")} onClick={()=>onChange({...value, tipo:"persona"})} style={{flex:1}}>Persona fisica</button>
+        <button type="button" className={"btn " + (value.tipo==="azienda" ? "" : "secondary")} onClick={()=>onChange({...value, tipo:"azienda"})} style={{flex:1}}>Azienda / Studio</button>
+      </div>
+      {value.tipo === "azienda" ? (
+        <div style={{marginBottom:12}}><label>Ragione sociale</label><input value={value.ragioneSociale} onChange={e=>onChange({...value, ragioneSociale:e.target.value})} /></div>
+      ) : (
+        <div className="row" style={{marginBottom:0}}>
+          <div><label>Nome</label><input value={value.nome} onChange={e=>onChange({...value, nome:e.target.value})} /></div>
+          <div><label>Cognome</label><input value={value.cognome} onChange={e=>onChange({...value, cognome:e.target.value})} /></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const EMPTY_ANAGRAFICA = { tipo:"persona", nome:"", cognome:"", ragioneSociale:"" };
+
 function AdminUsers({ currentUid }) {
   const [users, setUsers] = useState(null);
   const [form, setForm] = useState({ email:"", role:"user", codiceUtente:"" });
+  const [anagrafica, setAnagrafica] = useState(EMPTY_ANAGRAFICA);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
   const [resetMsg, setResetMsg] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = async () => {
     const snap = await db.collection("users").orderBy("createdAt", "desc").get();
@@ -949,10 +982,11 @@ function AdminUsers({ currentUid }) {
     if (!form.codiceUtente) { setError("Inserisci il codice utente (dal gestionale)."); return; }
     setCreating(true);
     const password = generatePassword();
-    const result = await createUserAsAdmin(form.email, password, form.role, form.codiceUtente);
+    const result = await createUserAsAdmin(form.email, password, form.role, form.codiceUtente, anagrafica);
     if (result.success) {
       setCreated({ email: form.email, password });
       setForm({ email:"", role:"user", codiceUtente:"" });
+      setAnagrafica(EMPTY_ANAGRAFICA);
       load();
     } else {
       setError(traduciErrore(result.error));
@@ -969,6 +1003,27 @@ function AdminUsers({ currentUid }) {
     }
   };
 
+  const startEdit = (u) => {
+    setEditingId(u.id);
+    setEditForm({
+      codiceUtente: u.codiceUtente || "",
+      tipo: u.tipoAnagrafica || "persona",
+      nome: u.nome || "", cognome: u.cognome || "", ragioneSociale: u.ragioneSociale || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    setSavingEdit(true);
+    await db.collection("users").doc(editingId).update({
+      codiceUtente: editForm.codiceUtente,
+      tipoAnagrafica: editForm.tipo,
+      nome: editForm.nome, cognome: editForm.cognome, ragioneSociale: editForm.ragioneSociale,
+    });
+    setSavingEdit(false);
+    setEditingId(null);
+    load();
+  };
+
   if (users === null) return <div className="empty">Caricamento...</div>;
   return (
     <div>
@@ -983,8 +1038,9 @@ function AdminUsers({ currentUid }) {
             <small>Consiglia alla persona di cambiarla dopo il primo accesso (menu "Cambia password" in alto).</small>
           </div>
         )}
-        <div className="row-auto">
-          <div><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="collega@esempio.it" /></div>
+        <AnagraficaFields value={anagrafica} onChange={setAnagrafica} />
+        <div className="row-auto" style={{marginTop:16}}>
+          <div><label>Email (credenziale di accesso)</label><input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} placeholder="collega@esempio.it" /></div>
           <div><label>Codice utente (gestionale)</label><input value={form.codiceUtente} onChange={e=>setForm({...form, codiceUtente:e.target.value})} placeholder="Es. UT-0042" /></div>
           <div>
             <label>Ruolo</label>
@@ -1002,27 +1058,47 @@ function AdminUsers({ currentUid }) {
       <div className="card">
         <h3>Utenti registrati</h3>
         <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
-          Per reimpostare la password di un utente esistente, invia l'email di reset: la persona riceverà un link per sceglierne una nuova.
+          Nominativo e codice utente si modificano liberamente da qui. L'email di accesso non è modificabile dall'app (va cambiata dalla console Firebase, se necessario) — per reimpostare la password, invia l'email di reset qui sotto.
         </p>
         <table>
-          <thead><tr><th>Email</th><th>Codice utente</th><th>Ruolo</th><th>Registrato il</th><th></th></tr></thead>
+          <thead><tr><th>Nominativo</th><th>Email</th><th>Codice utente</th><th>Ruolo</th><th></th></tr></thead>
           <tbody>
             {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td className="mono">{u.codiceUtente || "—"}</td>
-                <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
-                <td>{u.createdAt ? new Date(u.createdAt.seconds*1000).toLocaleDateString("it-IT") : "—"}</td>
-                <td style={{whiteSpace:"nowrap"}}>
-                  {u.id !== currentUid && (
-                    <button className="btn secondary small" onClick={()=>toggleRole(u)} type="button">
-                      {u.role === "admin" ? "Rendi utente normale" : "Rendi amministratore"}
-                    </button>
-                  )}{" "}
-                  <button className="btn secondary small" type="button" onClick={()=>sendReset(u)}>Invia email reset password</button>
-                  {resetMsg[u.id] && <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>{resetMsg[u.id]}</div>}
-                </td>
-              </tr>
+              <React.Fragment key={u.id}>
+                <tr>
+                  <td>{nominativo(u)}</td>
+                  <td>{u.email}</td>
+                  <td className="mono">{u.codiceUtente || "—"}</td>
+                  <td><span className={"role-pill " + (u.role === "admin" ? "admin" : "user")}>{u.role}</span></td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn secondary small" type="button" onClick={()=>editingId===u.id ? setEditingId(null) : startEdit(u)}>
+                      {editingId===u.id ? "Chiudi" : "Modifica"}
+                    </button>{" "}
+                    {u.id !== currentUid && (
+                      <button className="btn secondary small" onClick={()=>toggleRole(u)} type="button">
+                        {u.role === "admin" ? "Rendi utente normale" : "Rendi amministratore"}
+                      </button>
+                    )}{" "}
+                    <button className="btn secondary small" type="button" onClick={()=>sendReset(u)}>Invia email reset password</button>
+                    {resetMsg[u.id] && <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>{resetMsg[u.id]}</div>}
+                  </td>
+                </tr>
+                {editingId === u.id && (
+                  <tr><td colSpan="5">
+                    <div className="detail-box">
+                      <AnagraficaFields value={editForm} onChange={setEditForm} />
+                      <div style={{maxWidth:240, marginTop:12}}>
+                        <label>Codice utente (gestionale)</label>
+                        <input value={editForm.codiceUtente} onChange={e=>setEditForm({...editForm, codiceUtente:e.target.value})} />
+                      </div>
+                      <div style={{display:"flex", gap:10, marginTop:14}}>
+                        <button className="btn" type="button" onClick={saveEdit} disabled={savingEdit}>{savingEdit ? "Salvataggio..." : "Salva modifiche"}</button>
+                        <button className="btn secondary" type="button" onClick={()=>setEditingId(null)}>Annulla</button>
+                      </div>
+                    </div>
+                  </td></tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

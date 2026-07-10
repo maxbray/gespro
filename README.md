@@ -80,12 +80,12 @@ Le icone cambiano forma in base al tipo di dente secondo la numerazione FDI/ISO:
 
 Cliccando "Stampa / Salva PDF": la colonna sinistra contiene tutte le informazioni della prescrizione (anamnesi, paziente, denti, dispositivo, materiali, impronte, colore); la colonna destra contiene un **modulo delle prove** (tabella con 4 righe vuote: data prova, esito/note, firma) da compilare a mano durante gli appuntamenti successivi.
 
-## 8. Gestione utenti e password (pannello Admin → Utenti)
+## 8. Gestione utenti, anagrafica e password (pannello Admin → Utenti)
 
-- **Creazione**: l'admin crea un nuovo account (email + ruolo); l'app genera una password temporanea mostrata una sola volta, da comunicare alla persona.
-- **Reset password per utenti esistenti**: pulsante "Invia email reset password" per ogni utente — invia l'email standard di Firebase con un link che permette alla persona di scegliere una nuova password.
-
-  **Nota tecnica**: senza un vero backend (Cloud Functions), l'admin non può impostare direttamente una password a piacere per un utente già esistente — solo l'utente stesso può farlo, tramite il link ricevuto via email o dal menu "Cambia password" una volta loggato.
+- **Creazione**: l'admin inserisce anagrafica (persona fisica: nome/cognome, oppure azienda/studio: ragione sociale), email di accesso, **codice utente** (obbligatorio — sarà usato in futuro per abbinare un listino/catalogo specifico a ciascun utente) e ruolo. L'app genera una password temporanea mostrata una sola volta, da comunicare alla persona.
+- **Modifica**: pulsante "Modifica" su ogni riga della tabella utenti — permette di correggere in qualsiasi momento nominativo, ragione sociale e codice utente.
+- **Reset password per utenti esistenti**: pulsante "Invia email reset password" — invia l'email standard di Firebase con un link che permette alla persona di scegliere una nuova password.
+- **Email**: è anche la credenziale di accesso — non è modificabile dall'app né dall'admin né dall'utente. Per cambiarla, se necessario, va fatto dalla console Firebase (Authentication → Users → seleziona l'utente → modifica l'email), aggiornando poi a mano anche il campo `email` nel documento corrispondente su Firestore (collezione `users`).
 
 ### Diventare il primo amministratore (passaggio manuale, una tantum)
 
