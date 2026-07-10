@@ -45,7 +45,7 @@ service cloud.firestore {
 
     match /prescriptions/{prescriptionId} {
       allow read: if request.auth != null && (resource.data.ownerId == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null && (request.resource.data.ownerId == request.auth.uid || isAdmin());
       allow update, delete: if request.auth != null && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
@@ -95,15 +95,21 @@ Cliccando "Stampa / Salva PDF": la colonna sinistra contiene tutte le informazio
 4. Campi: `email` (string), `role` (string, `admin`), `createdAt` (timestamp, ora).
 5. Login nell'app con quell'account.
 
-## 9. Gestione prescrizioni (pannello Admin → Tutte le prescrizioni)
+## 9. Compilare una prescrizione per conto di un utente (senza impersonificazione)
+
+Quando l'admin apre "Nuova prescrizione" vede in cima un riquadro **"Per conto di"**, con un menu a tendina per scegliere un utente registrato invece di "Me stesso". La prescrizione viene salvata con quell'utente come proprietario: comparirà nel suo elenco personale, non in quello dell'admin, esattamente come se l'avesse compilata lui.
+
+**Nota tecnica**: non è un vero login come quell'utente (impersonificazione) — quella richiederebbe un backend (Cloud Functions) per generare un token di accesso a suo nome, cosa che qui non serve: basta assegnare correttamente il proprietario della prescrizione al salvataggio. Il campo `createdBy` nel database tiene comunque traccia di chi l'ha materialmente compilata (l'admin), per trasparenza.
+
+## 10. Gestione prescrizioni (pannello Admin → Tutte le prescrizioni)
 
 L'admin vede tutte le prescrizioni di tutti gli utenti, può aprire il **Dettaglio** di ognuna (anamnesi, materiali, impronte, colore, ecc.) e **eliminarle**. La modifica dei singoli campi di una prescrizione già salvata non è ancora implementata: se ti serve, dimmelo e la aggiungo.
 
-## 10. Catalogo dispositivi (senza prezzo)
+## 11. Catalogo dispositivi (senza prezzo)
 
 Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**.
 
-## 11. Uso quotidiano (utente normale)
+## 12. Uso quotidiano (utente normale)
 
 - **Nuova prescrizione**: compila tutte le sezioni del modulo, poi "Salva prescrizione" (assegna il codice univoco) e/o "Stampa / Salva PDF".
 - **Elenco prescrizioni**: storico delle proprie prescrizioni con codice.

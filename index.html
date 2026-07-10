@@ -468,7 +468,7 @@ function PrintablePrescription({ p }) {
   );
 }
 
-function NewPrescription({ user, catalog, onSaved }) {
+function NewPrescription({ user, catalog, onSaved, isAdmin, usersList }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
   const [teeth, setTeeth] = useState([]);
@@ -486,6 +486,7 @@ function NewPrescription({ user, catalog, onSaved }) {
   const [impronte, setImpronte] = useState({ data:"", disinfettateCon:"", materialeUtilizzato:"" });
   const [colore, setColore] = useState("");
   const [campionario, setCampionario] = useState("");
+  const [perContoDi, setPerContoDi] = useState(""); // uid dell'utente selezionato dall'admin, vuoto = se stesso
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [savedCode, setSavedCode] = useState(null);
@@ -527,8 +528,12 @@ function NewPrescription({ user, catalog, onSaved }) {
     setSaving(true);
     try {
       const code = await generatePrescriptionCode();
+      const targetUser = perContoDi ? usersList.find(u => u.id === perContoDi) : null;
       await db.collection("prescriptions").add({
-        code, ownerId: user.uid, ownerEmail: user.email,
+        code,
+        ownerId: targetUser ? targetUser.id : user.uid,
+        ownerEmail: targetUser ? targetUser.email : user.email,
+        createdBy: user.uid, createdByEmail: user.email, // traccia chi ha materialmente compilato la prescrizione
         patient, teeth, lines,
         anamnesi,
         altreInfo: { eta, sesso, formaViso },
@@ -558,6 +563,23 @@ function NewPrescription({ user, catalog, onSaved }) {
 
   return (
     <div>
+      {isAdmin && (
+        <div className="card">
+          <h3>Per conto di</h3>
+          <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
+            Stai compilando come amministratore. Se questa prescrizione è per un utente specifico, selezionalo qui sotto: comparirà nel suo elenco personale, non nel tuo.
+          </p>
+          <div style={{maxWidth:340}}>
+            <label>Utente</label>
+            <select value={perContoDi} onChange={e=>setPerContoDi(e.target.value)}>
+              <option value="">Me stesso ({user.email})</option>
+              {usersList.filter(u=>u.id !== user.uid).map(u => (
+                <option key={u.id} value={u.id}>{nominativo(u)} — {u.email}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
       <div className="card">
         <h3>Dati paziente</h3>
         {error && <div className="error">{error}</div>}
@@ -1129,6 +1151,7 @@ function App() {
   const [tab, setTab] = useState("new");
   const [refreshKey, setRefreshKey] = useState(0);
   const [catalog, setCatalog] = useState([]);
+  const [usersList, setUsersList] = useState([]);
   const [showChangePw, setShowChangePw] = useState(false);
 
   const loadCatalog = async () => {
@@ -1136,13 +1159,20 @@ function App() {
     setCatalog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
+  const loadUsersList = async () => {
+    const snap = await db.collection("users").get();
+    setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
       setUser(u);
       if (u) {
         const doc = await db.collection("users").doc(u.uid).get();
-        setProfile(doc.exists ? doc.data() : { role: "user" });
+        const prof = doc.exists ? doc.data() : { role: "user" };
+        setProfile(prof);
         loadCatalog();
+        if (prof.role === "admin") loadUsersList();
       } else {
         setProfile(null);
       }
@@ -1175,7 +1205,7 @@ function App() {
       </div>
       <div className="container">
         {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
-        {tab === "new" && <NewPrescription user={user} catalog={catalog} onSaved={()=>setRefreshKey(k=>k+1)} />}
+        {tab === "new" && <NewPrescription user={user} catalog={catalog} isAdmin={isAdmin} usersList={usersList} onSaved={()=>setRefreshKey(k=>k+1)} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
         {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} />}
       </div>
