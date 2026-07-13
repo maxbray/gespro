@@ -76,14 +76,18 @@ Oltre ai dati paziente e allo schema dentale, il form ora comprende:
 
 Le icone cambiano forma in base al tipo di dente secondo la numerazione FDI/ISO: incisivo, canino, premolare, molare — con legenda sotto lo schema.
 
-## 7. Stampa PDF a due colonne
+## 7. Stampa PDF a due colonne, con intestazione del cliente
 
-Cliccando "Stampa / Salva PDF": la colonna sinistra contiene tutte le informazioni della prescrizione (anamnesi, paziente, denti, dispositivo, materiali, impronte, colore); la colonna destra contiene un **modulo delle prove** (tabella con 4 righe vuote: data prova, esito/note, firma) da compilare a mano durante gli appuntamenti successivi.
+Cliccando "Stampa / Salva PDF": in alto compare l'**intestazione del cliente** (di chi possiede la prescrizione — sé stesso, oppure l'utente selezionato in "Per conto di") con logo (se caricato), nominativo/ragione sociale, indirizzo, P.IVA e telefono, presi dal suo profilo. Sotto, la colonna sinistra contiene tutte le informazioni della prescrizione (anamnesi, paziente, denti, dispositivo, materiali, impronte, colore); la colonna destra contiene un **modulo delle prove** (tabella con 4 righe vuote: data prova, esito/note, firma) da compilare a mano durante gli appuntamenti successivi.
+
+Questi dati vengono "fotografati" nella prescrizione al momento del salvataggio (non recuperati di nuovo in stampa), così restano coerenti anche se il profilo dell'utente viene modificato in seguito. Le prescrizioni salvate **prima** di questo aggiornamento non hanno questi dati: l'intestazione risulterà vuota per quelle.
+
+Il logo si carica dal profilo utente (Amministrazione → Utenti → crea o modifica un utente → "Dati per intestazione di stampa"): viene salvato come immagine incorporata nel database, quindi conviene usare un file piccolo (sotto ai 700 KB, l'app blocca file più pesanti).
 
 ## 8. Gestione utenti, anagrafica e password (pannello Admin → Utenti)
 
-- **Creazione**: l'admin inserisce anagrafica (persona fisica: nome/cognome, oppure azienda/studio: ragione sociale), email di accesso, **codice utente** (obbligatorio — sarà usato in futuro per abbinare un listino/catalogo specifico a ciascun utente) e ruolo. L'app genera una password temporanea mostrata una sola volta, da comunicare alla persona.
-- **Modifica**: pulsante "Modifica" su ogni riga della tabella utenti — permette di correggere in qualsiasi momento nominativo, ragione sociale e codice utente.
+- **Creazione**: l'admin inserisce anagrafica (persona fisica: nome/cognome, oppure azienda/studio: ragione sociale), indirizzo, P.IVA, telefono, logo opzionale, email di accesso, **codice utente** (obbligatorio — sarà usato in futuro per abbinare un listino/catalogo specifico a ciascun utente) e ruolo. L'app genera una password temporanea mostrata una sola volta, da comunicare alla persona.
+- **Modifica**: pulsante "Modifica" su ogni riga della tabella utenti — permette di correggere in qualsiasi momento nominativo, ragione sociale, codice utente e tutti i dati dell'intestazione di stampa (indirizzo, P.IVA, telefono, logo).
 - **Reset password per utenti esistenti**: pulsante "Invia email reset password" — invia l'email standard di Firebase con un link che permette alla persona di scegliere una nuova password.
 - **Email**: è anche la credenziale di accesso — non è modificabile dall'app né dall'admin né dall'utente. Per cambiarla, se necessario, va fatto dalla console Firebase (Authentication → Users → seleziona l'utente → modifica l'email), aggiornando poi a mano anche il campo `email` nel documento corrispondente su Firestore (collezione `users`).
 

@@ -189,6 +189,7 @@ async function createUserAsAdmin(email, password, role, codiceUtente, anagrafica
     await db.collection("users").doc(cred.user.uid).set({
       email, role, codiceUtente: codiceUtente || "",
       tipoAnagrafica: anagrafica.tipo, nome: anagrafica.nome || "", cognome: anagrafica.cognome || "", ragioneSociale: anagrafica.ragioneSociale || "",
+      indirizzo: anagrafica.indirizzo || "", piva: anagrafica.piva || "", telefono: anagrafica.telefono || "", logoDataUrl: anagrafica.logoDataUrl || "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await secondaryAuth.signOut();
@@ -392,13 +393,26 @@ function PrintablePrescription({ p }) {
   const lines = p.lines || [];
   const materialeAllegato = p.materialeAllegato || [];
   const impronte = p.impronte || {};
+  const clientHeader = p.clientHeader || {};
   return (
     <div className="print-area">
       <div className="print-header">
-        <div><h2 style={{margin:0, fontSize:18}}>GesPro</h2><div style={{fontSize:10, color:"#555"}}>Prescrizione per laboratorio odontotecnico</div></div>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          {clientHeader.logoDataUrl && <img src={clientHeader.logoDataUrl} alt="Logo" style={{height:40, maxWidth:80, objectFit:"contain"}} />}
+          <div>
+            <h2 style={{margin:0, fontSize:16}}>{clientHeader.nominativo || "—"}</h2>
+            <div style={{fontSize:9, color:"#555"}}>
+              {clientHeader.indirizzo && <div>{clientHeader.indirizzo}</div>}
+              {(clientHeader.piva || clientHeader.telefono) && (
+                <div>{clientHeader.piva && `P.IVA ${clientHeader.piva}`}{clientHeader.piva && clientHeader.telefono ? " · " : ""}{clientHeader.telefono && `Tel. ${clientHeader.telefono}`}</div>
+              )}
+            </div>
+          </div>
+        </div>
         <div style={{fontSize:11, textAlign:"right"}}>
           {p.code && <div><strong>{p.code}</strong></div>}
           <div>{p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT")}</div>
+          <div style={{fontSize:9, color:"#999", marginTop:2}}>Prescrizione GesPro</div>
         </div>
       </div>
       <div className="print-columns">
@@ -468,7 +482,7 @@ function PrintablePrescription({ p }) {
   );
 }
 
-function NewPrescription({ user, catalog, onSaved, isAdmin, usersList }) {
+function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
   const [teeth, setTeeth] = useState([]);
@@ -529,11 +543,22 @@ function NewPrescription({ user, catalog, onSaved, isAdmin, usersList }) {
     try {
       const code = await generatePrescriptionCode();
       const targetUser = perContoDi ? usersList.find(u => u.id === perContoDi) : null;
+      const ownerProfile = targetUser || profile || {};
+      const clientHeader = {
+        nominativo: ownerProfile.tipoAnagrafica === "azienda"
+          ? (ownerProfile.ragioneSociale || "")
+          : `${ownerProfile.nome || ""} ${ownerProfile.cognome || ""}`.trim(),
+        indirizzo: ownerProfile.indirizzo || "",
+        piva: ownerProfile.piva || "",
+        telefono: ownerProfile.telefono || "",
+        logoDataUrl: ownerProfile.logoDataUrl || "",
+      };
       await db.collection("prescriptions").add({
         code,
         ownerId: targetUser ? targetUser.id : user.uid,
         ownerEmail: targetUser ? targetUser.email : user.email,
         createdBy: user.uid, createdByEmail: user.email, // traccia chi ha materialmente compilato la prescrizione
+        clientHeader,
         patient, teeth, lines,
         anamnesi,
         altreInfo: { eta, sesso, formaViso },
@@ -728,6 +753,19 @@ function NewPrescription({ user, catalog, onSaved, isAdmin, usersList }) {
 
       <PrintablePrescription p={{
         code: savedCode,
+        clientHeader: (() => {
+          const targetUser = perContoDi ? usersList.find(u => u.id === perContoDi) : null;
+          const ownerProfile = targetUser || profile || {};
+          return {
+            nominativo: ownerProfile.tipoAnagrafica === "azienda"
+              ? (ownerProfile.ragioneSociale || "")
+              : `${ownerProfile.nome || ""} ${ownerProfile.cognome || ""}`.trim(),
+            indirizzo: ownerProfile.indirizzo || "",
+            piva: ownerProfile.piva || "",
+            telefono: ownerProfile.telefono || "",
+            logoDataUrl: ownerProfile.logoDataUrl || "",
+          };
+        })(),
         patient, teeth, lines,
         anamnesi,
         altreInfo: { eta, sesso, formaViso },
@@ -953,6 +991,18 @@ function nominativo(u) {
   return "—";
 }
 
+function handleLogoUpload(e, value, onChange) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 700 * 1024) {
+    alert("Il logo è troppo grande (max ~700 KB). Prova a ridurlo o comprimerlo prima di caricarlo.");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => onChange({ ...value, logoDataUrl: reader.result });
+  reader.readAsDataURL(file);
+}
+
 function AnagraficaFields({ value, onChange }) {
   return (
     <div>
@@ -963,16 +1013,32 @@ function AnagraficaFields({ value, onChange }) {
       {value.tipo === "azienda" ? (
         <div style={{marginBottom:12}}><label>Ragione sociale</label><input value={value.ragioneSociale} onChange={e=>onChange({...value, ragioneSociale:e.target.value})} /></div>
       ) : (
-        <div className="row" style={{marginBottom:0}}>
+        <div className="row" style={{marginBottom:12}}>
           <div><label>Nome</label><input value={value.nome} onChange={e=>onChange({...value, nome:e.target.value})} /></div>
           <div><label>Cognome</label><input value={value.cognome} onChange={e=>onChange({...value, cognome:e.target.value})} /></div>
         </div>
       )}
+      <h4 style={{marginTop:16}}>Dati per intestazione di stampa</h4>
+      <div style={{marginBottom:12}}><label>Indirizzo</label><input value={value.indirizzo} onChange={e=>onChange({...value, indirizzo:e.target.value})} placeholder="Via, città, CAP" /></div>
+      <div className="row" style={{marginBottom:12}}>
+        <div><label>P.IVA</label><input value={value.piva} onChange={e=>onChange({...value, piva:e.target.value})} /></div>
+        <div><label>Telefono</label><input value={value.telefono} onChange={e=>onChange({...value, telefono:e.target.value})} /></div>
+      </div>
+      <div>
+        <label>Logo (opzionale, comparirà sulle prescrizioni stampate)</label>
+        <input type="file" accept="image/*" onChange={e=>handleLogoUpload(e, value, onChange)} />
+        {value.logoDataUrl && (
+          <div style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
+            <img src={value.logoDataUrl} alt="Logo" style={{height:40, borderRadius:4, border:"1px solid var(--border)"}} />
+            <button type="button" className="btn danger" onClick={()=>onChange({...value, logoDataUrl:""})}>Rimuovi logo</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-const EMPTY_ANAGRAFICA = { tipo:"persona", nome:"", cognome:"", ragioneSociale:"" };
+const EMPTY_ANAGRAFICA = { tipo:"persona", nome:"", cognome:"", ragioneSociale:"", indirizzo:"", piva:"", telefono:"", logoDataUrl:"" };
 
 function AdminUsers({ currentUid }) {
   const [users, setUsers] = useState(null);
@@ -1031,6 +1097,7 @@ function AdminUsers({ currentUid }) {
       codiceUtente: u.codiceUtente || "",
       tipo: u.tipoAnagrafica || "persona",
       nome: u.nome || "", cognome: u.cognome || "", ragioneSociale: u.ragioneSociale || "",
+      indirizzo: u.indirizzo || "", piva: u.piva || "", telefono: u.telefono || "", logoDataUrl: u.logoDataUrl || "",
     });
   };
 
@@ -1040,6 +1107,7 @@ function AdminUsers({ currentUid }) {
       codiceUtente: editForm.codiceUtente,
       tipoAnagrafica: editForm.tipo,
       nome: editForm.nome, cognome: editForm.cognome, ragioneSociale: editForm.ragioneSociale,
+      indirizzo: editForm.indirizzo, piva: editForm.piva, telefono: editForm.telefono, logoDataUrl: editForm.logoDataUrl,
     });
     setSavingEdit(false);
     setEditingId(null);
@@ -1205,7 +1273,7 @@ function App() {
       </div>
       <div className="container">
         {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
-        {tab === "new" && <NewPrescription user={user} catalog={catalog} isAdmin={isAdmin} usersList={usersList} onSaved={()=>setRefreshKey(k=>k+1)} />}
+        {tab === "new" && <NewPrescription user={user} profile={profile} catalog={catalog} isAdmin={isAdmin} usersList={usersList} onSaved={()=>setRefreshKey(k=>k+1)} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
         {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} />}
       </div>
