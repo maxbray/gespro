@@ -102,6 +102,7 @@
     body *{ visibility:hidden; }
     .print-area, .print-area *{ visibility:visible; }
     .print-area{ display:flex; flex-direction:column; position:absolute; top:0; left:0; width:100%; height:277mm; padding:14px; font-size:11px; }
+    .print-area.listino-print{ display:block; height:auto; }
     .print-header{ flex:0 0 auto; display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #12242B; padding-bottom:8px; margin-bottom:12px; }
     .print-columns{ flex:1 1 auto; display:flex; gap:16px; min-height:0; }
     .print-col{ width:50%; }
@@ -387,6 +388,50 @@ function ChangePassword({ onClose }) {
 const DEFAULT_ANAMNESI = { nullaDaSegnalare:true, allergie:false, disfunzioniArticolari:false, altriDispositivi:false, handicapPsicomotori:false, bruxista:false, malattieInfettive:false, altro:false, note:"" };
 
 // ============ AREA DI STAMPA (condivisa: nuova prescrizione + pannello admin) ============
+function PrintableListino({ data }) {
+  const { listino, lavorazioni, clientHeader } = data;
+  const categories = [...new Set(lavorazioni.map(i => i.category))];
+  return (
+    <div className="print-area listino-print">
+      <div className="print-header">
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          {clientHeader.logoDataUrl && <img src={clientHeader.logoDataUrl} alt="Logo" style={{height:40, maxWidth:80, objectFit:"contain"}} />}
+          <div>
+            <h2 style={{margin:0, fontSize:16}}>{clientHeader.nominativo || listino.nome}</h2>
+            <div style={{fontSize:9, color:"#555"}}>
+              {clientHeader.indirizzo && <div>{clientHeader.indirizzo}</div>}
+              {(clientHeader.piva || clientHeader.telefono) && (
+                <div>{clientHeader.piva && `P.IVA ${clientHeader.piva}`}{clientHeader.piva && clientHeader.telefono ? " · " : ""}{clientHeader.telefono && `Tel. ${clientHeader.telefono}`}</div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div style={{fontSize:11, textAlign:"right"}}>
+          <div><strong>Listino lavorazioni</strong></div>
+          <div>{new Date().toLocaleDateString("it-IT")}</div>
+        </div>
+      </div>
+      {categories.map(cat => (
+        <div key={cat} className="print-section">
+          <h5>{cat}</h5>
+          <table>
+            <thead><tr><th>Codice</th><th>Descrizione</th><th>Prezzo</th></tr></thead>
+            <tbody>
+              {lavorazioni.filter(i => i.category === cat).map(i => (
+                <tr key={i.id}>
+                  <td className="mono">{i.code}</td>
+                  <td>{i.description}</td>
+                  <td>{i.price !== null && i.price !== undefined ? `€ ${Number(i.price).toFixed(2)}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PrintablePrescription({ p }) {
   const anamnesi = p.anamnesi || { nullaDaSegnalare: true };
   const altreInfo = p.altreInfo || {};
@@ -946,14 +991,19 @@ function parseListinoExcel(file) {
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        // Prima riga = intestazioni, si assume l'ordine: Categoria, Codice, Descrizione
+        // Prima riga = intestazioni, si assume l'ordine: Categoria, Codice, Descrizione, Prezzo (opzionale)
         const items = rows.slice(1)
           .filter(r => r && r.length >= 2 && String(r[1] || "").trim())
-          .map(r => ({
-            category: String(r[0] || "").trim(),
-            code: String(r[1] || "").trim(),
-            description: String(r[2] || "").trim(),
-          }));
+          .map(r => {
+            const priceRaw = r[3];
+            const price = priceRaw !== undefined && priceRaw !== "" && !isNaN(parseFloat(priceRaw)) ? parseFloat(priceRaw) : null;
+            return {
+              category: String(r[0] || "").trim(),
+              code: String(r[1] || "").trim(),
+              description: String(r[2] || "").trim(),
+              price,
+            };
+          });
         resolve(items);
       } catch (err) {
         reject(err);
@@ -966,10 +1016,12 @@ function parseListinoExcel(file) {
 
 function AdminListinoDetail({ listino, onBack }) {
   const [lavorazioni, setLavorazioni] = useState(null);
-  const [form, setForm] = useState({ category:"", code:"", description:"" });
+  const [form, setForm] = useState({ category:"", code:"", description:"", price:"" });
   const [saving, setSaving] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [importing, setImporting] = useState(false);
+  const [priceEdits, setPriceEdits] = useState({});
+  const [printData, setPrintData] = useState(null);
 
   const load = async () => {
     const snap = await db.collection("listini").doc(listino.id).collection("lavorazioni").orderBy("category").get();
@@ -977,16 +1029,39 @@ function AdminListinoDetail({ listino, onBack }) {
   };
   useEffect(() => { load(); }, [listino.id]);
 
+  useEffect(() => {
+    if (printData) {
+      const t = setTimeout(() => window.print(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [printData]);
+  useEffect(() => {
+    const handler = () => setPrintData(null);
+    window.addEventListener("afterprint", handler);
+    return () => window.removeEventListener("afterprint", handler);
+  }, []);
+
   const addItem = async () => {
     if (!form.category || !form.code || !form.description) return;
     setSaving(true);
-    await db.collection("listini").doc(listino.id).collection("lavorazioni").add(form);
-    setForm({ category:"", code:"", description:"" });
+    await db.collection("listini").doc(listino.id).collection("lavorazioni").add({
+      category: form.category, code: form.code, description: form.description,
+      price: form.price !== "" ? parseFloat(form.price) : null,
+    });
+    setForm({ category:"", code:"", description:"", price:"" });
     await load();
     setSaving(false);
   };
   const removeItem = async (id) => {
     await db.collection("listini").doc(listino.id).collection("lavorazioni").doc(id).delete();
+    load();
+  };
+
+  const savePrice = async (item) => {
+    const raw = priceEdits[item.id];
+    const price = raw !== undefined && raw !== "" ? parseFloat(raw) : null;
+    await db.collection("listini").doc(listino.id).collection("lavorazioni").doc(item.id).update({ price });
+    setPriceEdits(pe => { const copy = {...pe}; delete copy[item.id]; return copy; });
     load();
   };
 
@@ -997,7 +1072,7 @@ function AdminListinoDetail({ listino, onBack }) {
     try {
       const items = await parseListinoExcel(file);
       if (items.length === 0) {
-        setImportMsg("Nessuna riga valida trovata. Il file deve avere le colonne, nell'ordine: Categoria, Codice, Descrizione (prima riga = intestazioni).");
+        setImportMsg("Nessuna riga valida trovata. Il file deve avere le colonne, nell'ordine: Categoria, Codice, Descrizione, Prezzo (prima riga = intestazioni).");
         setImporting(false);
         return;
       }
@@ -1018,18 +1093,37 @@ function AdminListinoDetail({ listino, onBack }) {
     e.target.value = "";
   };
 
+  const preparePrint = async () => {
+    // Cerca il profilo del cliente associato (stesso codice utente) per l'intestazione
+    let clientHeader = { nominativo: listino.nome, indirizzo:"", piva:"", telefono:"", logoDataUrl:"" };
+    try {
+      const snap = await db.collection("users").where("codiceUtente", "==", listino.codice).limit(1).get();
+      if (!snap.empty) {
+        const u = snap.docs[0].data();
+        clientHeader = {
+          nominativo: u.tipoAnagrafica === "azienda" ? (u.ragioneSociale || listino.nome) : `${u.nome||""} ${u.cognome||""}`.trim() || listino.nome,
+          indirizzo: u.indirizzo || "", piva: u.piva || "", telefono: u.telefono || "", logoDataUrl: u.logoDataUrl || "",
+        };
+      }
+    } catch (err) { /* usa i valori di default se la ricerca fallisce */ }
+    setPrintData({ listino, lavorazioni: lavorazioni || [], clientHeader });
+  };
+
   const categories = lavorazioni ? [...new Set(lavorazioni.map(i => i.category))] : [];
 
   return (
     <div className="card">
       <button className="link-btn" type="button" onClick={onBack} style={{padding:0, marginBottom:10}}>← Torna ai listini</button>
-      <h3>Listino: {listino.nome} <span className="code-chip">{listino.codice}</span></h3>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10}}>
+        <h3>Listino: {listino.nome} <span className="code-chip">{listino.codice}</span></h3>
+        <button className="btn secondary" type="button" onClick={preparePrint} disabled={!lavorazioni || lavorazioni.length===0}>Stampa listino</button>
+      </div>
       <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
-        Gli utenti con codice utente <strong className="mono">{listino.codice}</strong> vedranno solo le lavorazioni di questo listino invece del catalogo generico.
+        Gli utenti con codice utente <strong className="mono">{listino.codice}</strong> vedranno solo codice e descrizione di queste lavorazioni (mai il prezzo). Il prezzo è visibile solo qui, lato amministrazione, per poter stampare un listino da consegnare al cliente se richiesto.
       </p>
 
       <div className="info">
-        <strong>Importa da Excel:</strong> il file deve avere 3 colonne nell'ordine Categoria, Codice, Descrizione, con la prima riga di intestazioni (verrà ignorata). Le righe importate si aggiungono a quelle esistenti.
+        <strong>Importa da Excel:</strong> il file deve avere 4 colonne nell'ordine Categoria, Codice, Descrizione, Prezzo (la colonna Prezzo è opzionale), con la prima riga di intestazioni (verrà ignorata). Le righe importate si aggiungono a quelle esistenti.
         <div style={{marginTop:8}}>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} disabled={importing} />
         </div>
@@ -1038,12 +1132,13 @@ function AdminListinoDetail({ listino, onBack }) {
       </div>
 
       <h4 style={{marginTop:20}}>Aggiungi manualmente</h4>
-      <div className="row3">
+      <div className="row-auto">
         <div><label>Categoria</label><input list="listino-cat-list" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} />
           <datalist id="listino-cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
         </div>
         <div><label>Codice</label><input value={form.code} onChange={e=>setForm({...form, code:e.target.value})} /></div>
         <div><label>Descrizione</label><input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} /></div>
+        <div><label>Prezzo € (opzionale)</label><input type="number" value={form.price} onChange={e=>setForm({...form, price:e.target.value})} /></div>
       </div>
       <button className="btn" onClick={addItem} disabled={saving} type="button" style={{marginBottom:18}}>+ Aggiungi</button>
 
@@ -1051,17 +1146,26 @@ function AdminListinoDetail({ listino, onBack }) {
         <div className="empty">Nessuna lavorazione in questo listino ancora.</div>
       ) : (
         <table>
-          <thead><tr><th>Categoria</th><th>Codice</th><th>Descrizione</th><th></th></tr></thead>
+          <thead><tr><th>Categoria</th><th>Codice</th><th>Descrizione</th><th>Prezzo €</th><th></th></tr></thead>
           <tbody>
             {lavorazioni.map(i => (
               <tr key={i.id}>
                 <td>{i.category}</td><td className="mono">{i.code}</td><td>{i.description}</td>
-                <td><button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button></td>
+                <td style={{minWidth:110}}>
+                  <input type="number" style={{padding:"6px 8px"}} value={priceEdits[i.id] !== undefined ? priceEdits[i.id] : (i.price !== null && i.price !== undefined ? i.price : "")}
+                    onChange={e=>setPriceEdits(pe=>({...pe, [i.id]: e.target.value}))} />
+                </td>
+                <td style={{whiteSpace:"nowrap"}}>
+                  {priceEdits[i.id] !== undefined && <button className="btn secondary small" type="button" onClick={()=>savePrice(i)}>Salva</button>}{" "}
+                  <button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+
+      {printData && <PrintableListino data={printData} />}
     </div>
   );
 }

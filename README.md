@@ -122,13 +122,17 @@ L'admin vede tutte le prescrizioni di tutti gli utenti, può aprire il **Dettagl
 
 Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**. Questo è il catalogo **generico**, usato da chi non ha un listino dedicato assegnato (vedi punto successivo).
 
-## 12. Listini dedicati per cliente (con import da Excel)
+## 12. Listini dedicati per cliente (con import da Excel, prezzo e stampa)
 
 Da **Amministrazione → Listini** puoi creare listini specifici — pensati per clienti/laboratori che devono vedere solo un sottoinsieme di lavorazioni invece del catalogo generico.
 
 - **Creazione**: ogni listino ha un **nome** (es. "Studio Rossi") e un **codice**. Se quel codice coincide con il **codice utente** di una persona (impostato quando l'admin crea/modifica il suo account), quella persona vedrà automaticamente le lavorazioni di questo listino al posto del catalogo generico in "Nuova prescrizione" — nessuna assegnazione manuale ulteriore da fare.
-- **Popolare un listino manualmente**: da "Gestisci lavorazioni" del listino, stesso modulo del catalogo generico (categoria, codice, descrizione).
-- **Popolare un listino da Excel**: nello stesso pannello, carica un file `.xlsx` con 3 colonne nell'ordine **Categoria, Codice, Descrizione** e la prima riga di intestazioni (verrà ignorata). Le righe vengono aggiunte a quelle già presenti — utile per importare listini corposi in un colpo solo. Fogli `.xls` e `.csv` con la stessa struttura funzionano allo stesso modo.
+- **Popolare un listino manualmente**: da "Gestisci lavorazioni" del listino, stesso modulo del catalogo generico (categoria, codice, descrizione) più un campo **Prezzo** opzionale.
+- **Popolare un listino da Excel**: nello stesso pannello, carica un file `.xlsx` con 4 colonne nell'ordine **Categoria, Codice, Descrizione, Prezzo** (il prezzo è opzionale, puoi lasciare la colonna vuota) e la prima riga di intestazioni (verrà ignorata). Le righe vengono aggiunte a quelle già presenti. Fogli `.xls` e `.csv` con la stessa struttura funzionano allo stesso modo.
+- **Prezzo — solo lato amministrazione**: il prezzo si vede e si modifica (anche inline, riga per riga) solo qui, nel pannello admin. **Non compare mai** nell'interfaccia dell'utente normale che compila una prescrizione (né nella selezione dispositivo, né nella prescrizione salvata, né in stampa) — è pensato solo per uso interno e per la stampa del listino stesso.
+
+  **Nota tecnica onesta**: come già per il vecchio listino con prezzi, questa protezione è a livello di interfaccia. Firestore non permette di nascondere singoli campi lato server nelle regole di sicurezza, quindi un utente molto esperto che ispezionasse il traffico di rete del browser potrebbe intercettare il prezzo grezzo insieme al resto dei dati della lavorazione. Per un uso interno tra colleghi di fiducia è comunque un buon livello di protezione; per una riservatezza totale garantita servirebbe una Cloud Function.
+- **Stampa listino**: pulsante "Stampa listino" in alto nella pagina del listino — genera un PDF/foglio stampabile con logo e dati del cliente (se il suo profilo è compilato), lavorazioni raggruppate per categoria, con relativo prezzo. Utile da consegnare al cliente su richiesta. Il documento non ha limite di una pagina: se il listino è lungo, prosegue su più pagine.
 - **Se un utente non ha un listino corrispondente** (o il suo codice utente è vuoto, o il listino trovato non ha lavorazioni), l'app usa automaticamente il catalogo generico come prima.
 - **Eliminare un listino** cancella anche tutte le sue lavorazioni.
 
