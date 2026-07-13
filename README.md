@@ -52,6 +52,15 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read, write: if request.auth != null;
     }
+
+    match /listini/{listinoId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+      match /lavorazioni/{itemId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+    }
   }
 }
 ```
@@ -111,9 +120,19 @@ L'admin vede tutte le prescrizioni di tutti gli utenti, può aprire il **Dettagl
 
 ## 11. Catalogo dispositivi (senza prezzo)
 
-Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**.
+Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**. Questo è il catalogo **generico**, usato da chi non ha un listino dedicato assegnato (vedi punto successivo).
 
-## 12. Uso quotidiano (utente normale)
+## 12. Listini dedicati per cliente (con import da Excel)
+
+Da **Amministrazione → Listini** puoi creare listini specifici — pensati per clienti/laboratori che devono vedere solo un sottoinsieme di lavorazioni invece del catalogo generico.
+
+- **Creazione**: ogni listino ha un **nome** (es. "Studio Rossi") e un **codice**. Se quel codice coincide con il **codice utente** di una persona (impostato quando l'admin crea/modifica il suo account), quella persona vedrà automaticamente le lavorazioni di questo listino al posto del catalogo generico in "Nuova prescrizione" — nessuna assegnazione manuale ulteriore da fare.
+- **Popolare un listino manualmente**: da "Gestisci lavorazioni" del listino, stesso modulo del catalogo generico (categoria, codice, descrizione).
+- **Popolare un listino da Excel**: nello stesso pannello, carica un file `.xlsx` con 3 colonne nell'ordine **Categoria, Codice, Descrizione** e la prima riga di intestazioni (verrà ignorata). Le righe vengono aggiunte a quelle già presenti — utile per importare listini corposi in un colpo solo. Fogli `.xls` e `.csv` con la stessa struttura funzionano allo stesso modo.
+- **Se un utente non ha un listino corrispondente** (o il suo codice utente è vuoto, o il listino trovato non ha lavorazioni), l'app usa automaticamente il catalogo generico come prima.
+- **Eliminare un listino** cancella anche tutte le sue lavorazioni.
+
+## 13. Uso quotidiano (utente normale)
 
 - **Nuova prescrizione**: compila tutte le sezioni del modulo, poi "Salva prescrizione" (assegna il codice univoco) e/o "Stampa / Salva PDF".
 - **Elenco prescrizioni**: storico delle proprie prescrizioni con codice.

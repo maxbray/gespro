@@ -14,6 +14,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   :root{
@@ -483,7 +484,9 @@ function PrintablePrescription({ p }) {
 }
 
 function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }) {
-  const categories = [...new Set(catalog.map(i => i.category))];
+  const [effectiveCatalog, setEffectiveCatalog] = useState(catalog);
+  const [listinoAttivo, setListinoAttivo] = useState(null);
+  const categories = [...new Set(effectiveCatalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
   const [teeth, setTeeth] = useState([]);
   const [category, setCategory] = useState(categories[0] || "");
@@ -505,16 +508,41 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   const [error, setError] = useState("");
   const [savedCode, setSavedCode] = useState(null);
 
+  // Risolve il listino del cliente in base al suo codice utente; se non trovato, usa il catalogo generico
   useEffect(() => {
-    const items = catalog.filter(i => i.category === category);
+    let cancelled = false;
+    async function resolveCatalog() {
+      const targetUser = perContoDi ? usersList.find(u => u.id === perContoDi) : null;
+      const codiceUtente = targetUser ? targetUser.codiceUtente : (profile && profile.codiceUtente);
+      if (!codiceUtente) { if (!cancelled) { setEffectiveCatalog(catalog); setListinoAttivo(null); } return; }
+      try {
+        const snap = await db.collection("listini").where("codice", "==", codiceUtente).limit(1).get();
+        if (snap.empty) { if (!cancelled) { setEffectiveCatalog(catalog); setListinoAttivo(null); } return; }
+        const listinoDoc = snap.docs[0];
+        const itemsSnap = await db.collection("listini").doc(listinoDoc.id).collection("lavorazioni").orderBy("category").get();
+        if (itemsSnap.empty) { if (!cancelled) { setEffectiveCatalog(catalog); setListinoAttivo(null); } return; }
+        if (!cancelled) {
+          setEffectiveCatalog(itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          setListinoAttivo({ id: listinoDoc.id, ...listinoDoc.data() });
+        }
+      } catch (err) {
+        if (!cancelled) { setEffectiveCatalog(catalog); setListinoAttivo(null); }
+      }
+    }
+    resolveCatalog();
+    return () => { cancelled = true; };
+  }, [perContoDi, catalog, profile, usersList]);
+
+  useEffect(() => {
+    const items = effectiveCatalog.filter(i => i.category === category);
     setSelectedCode(items[0] ? items[0].code : "");
-  }, [category, catalog]);
+  }, [category, effectiveCatalog]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
-  const currentCategoryItems = catalog.filter(i => i.category === category);
+  const currentCategoryItems = effectiveCatalog.filter(i => i.category === category);
 
   const addLine = () => {
-    const item = catalog.find(i => i.category === category && i.code === selectedCode);
+    const item = effectiveCatalog.find(i => i.category === category && i.code === selectedCode);
     if (item) setLines(l => [...l, { category: item.category, code: item.code, description: item.description }]);
   };
   const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
@@ -582,8 +610,8 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     window.print();
   };
 
-  if (catalog.length === 0) {
-    return <div className="card"><div className="info">Il catalogo è vuoto. Chiedi a un amministratore di aggiungere i dispositivi nel pannello "Amministrazione".</div></div>;
+  if (effectiveCatalog.length === 0) {
+    return <div className="card"><div className="info">{listinoAttivo ? `Il listino "${listinoAttivo.nome}" è vuoto.` : "Il catalogo è vuoto."} Chiedi a un amministratore di aggiungere i dispositivi nel pannello "Amministrazione".</div></div>;
   }
 
   return (
@@ -671,6 +699,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
 
       <div className="card">
         <h3>Dispositivo da realizzare</h3>
+        {listinoAttivo && <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-6}}>Stai usando il listino dedicato "{listinoAttivo.nome}".</p>}
         <div className="row">
           <div>
             <label>Categoria</label>
@@ -903,6 +932,207 @@ function AdminCatalog({ catalog, reload }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ============ ADMIN: LISTINI PER CLIENTE (con import Excel) ============
+function parseListinoExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        // Prima riga = intestazioni, si assume l'ordine: Categoria, Codice, Descrizione
+        const items = rows.slice(1)
+          .filter(r => r && r.length >= 2 && String(r[1] || "").trim())
+          .map(r => ({
+            category: String(r[0] || "").trim(),
+            code: String(r[1] || "").trim(),
+            description: String(r[2] || "").trim(),
+          }));
+        resolve(items);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function AdminListinoDetail({ listino, onBack }) {
+  const [lavorazioni, setLavorazioni] = useState(null);
+  const [form, setForm] = useState({ category:"", code:"", description:"" });
+  const [saving, setSaving] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const load = async () => {
+    const snap = await db.collection("listini").doc(listino.id).collection("lavorazioni").orderBy("category").get();
+    setLavorazioni(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+  useEffect(() => { load(); }, [listino.id]);
+
+  const addItem = async () => {
+    if (!form.category || !form.code || !form.description) return;
+    setSaving(true);
+    await db.collection("listini").doc(listino.id).collection("lavorazioni").add(form);
+    setForm({ category:"", code:"", description:"" });
+    await load();
+    setSaving(false);
+  };
+  const removeItem = async (id) => {
+    await db.collection("listini").doc(listino.id).collection("lavorazioni").doc(id).delete();
+    load();
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true); setImportMsg("");
+    try {
+      const items = await parseListinoExcel(file);
+      if (items.length === 0) {
+        setImportMsg("Nessuna riga valida trovata. Il file deve avere le colonne, nell'ordine: Categoria, Codice, Descrizione (prima riga = intestazioni).");
+        setImporting(false);
+        return;
+      }
+      for (let i = 0; i < items.length; i += 400) {
+        const batch = db.batch();
+        items.slice(i, i + 400).forEach(item => {
+          const ref = db.collection("listini").doc(listino.id).collection("lavorazioni").doc();
+          batch.set(ref, item);
+        });
+        await batch.commit();
+      }
+      setImportMsg(`Importate ${items.length} lavorazioni.`);
+      await load();
+    } catch (err) {
+      setImportMsg("Errore nella lettura del file: " + err.message);
+    }
+    setImporting(false);
+    e.target.value = "";
+  };
+
+  const categories = lavorazioni ? [...new Set(lavorazioni.map(i => i.category))] : [];
+
+  return (
+    <div className="card">
+      <button className="link-btn" type="button" onClick={onBack} style={{padding:0, marginBottom:10}}>← Torna ai listini</button>
+      <h3>Listino: {listino.nome} <span className="code-chip">{listino.codice}</span></h3>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
+        Gli utenti con codice utente <strong className="mono">{listino.codice}</strong> vedranno solo le lavorazioni di questo listino invece del catalogo generico.
+      </p>
+
+      <div className="info">
+        <strong>Importa da Excel:</strong> il file deve avere 3 colonne nell'ordine Categoria, Codice, Descrizione, con la prima riga di intestazioni (verrà ignorata). Le righe importate si aggiungono a quelle esistenti.
+        <div style={{marginTop:8}}>
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} disabled={importing} />
+        </div>
+        {importing && <div style={{marginTop:6}}>Importazione in corso...</div>}
+        {importMsg && <div style={{marginTop:6}}>{importMsg}</div>}
+      </div>
+
+      <h4 style={{marginTop:20}}>Aggiungi manualmente</h4>
+      <div className="row3">
+        <div><label>Categoria</label><input list="listino-cat-list" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} />
+          <datalist id="listino-cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+        </div>
+        <div><label>Codice</label><input value={form.code} onChange={e=>setForm({...form, code:e.target.value})} /></div>
+        <div><label>Descrizione</label><input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} /></div>
+      </div>
+      <button className="btn" onClick={addItem} disabled={saving} type="button" style={{marginBottom:18}}>+ Aggiungi</button>
+
+      {lavorazioni === null ? <div className="empty">Caricamento...</div> : lavorazioni.length === 0 ? (
+        <div className="empty">Nessuna lavorazione in questo listino ancora.</div>
+      ) : (
+        <table>
+          <thead><tr><th>Categoria</th><th>Codice</th><th>Descrizione</th><th></th></tr></thead>
+          <tbody>
+            {lavorazioni.map(i => (
+              <tr key={i.id}>
+                <td>{i.category}</td><td className="mono">{i.code}</td><td>{i.description}</td>
+                <td><button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function AdminListini() {
+  const [listini, setListini] = useState(null);
+  const [form, setForm] = useState({ nome:"", codice:"" });
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+
+  const load = async () => {
+    const snap = await db.collection("listini").orderBy("nome").get();
+    setListini(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+  useEffect(() => { load(); }, []);
+
+  const addListino = async () => {
+    setError("");
+    if (!form.nome || !form.codice) { setError("Inserisci nome e codice del listino."); return; }
+    setCreating(true);
+    await db.collection("listini").add({ nome: form.nome, codice: form.codice, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setForm({ nome:"", codice:"" });
+    await load();
+    setCreating(false);
+  };
+
+  const removeListino = async (l) => {
+    if (!window.confirm(`Eliminare il listino "${l.nome}" e tutte le sue lavorazioni?`)) return;
+    const snap = await db.collection("listini").doc(l.id).collection("lavorazioni").get();
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    await db.collection("listini").doc(l.id).delete();
+    load();
+  };
+
+  if (selected) return <AdminListinoDetail listino={selected} onBack={()=>{ setSelected(null); load(); }} />;
+
+  if (listini === null) return <div className="empty">Caricamento...</div>;
+  return (
+    <div className="card">
+      <h3>Listini per cliente</h3>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
+        Ogni listino ha un codice: se combacia con il "codice utente" di una persona, quella persona vedrà le lavorazioni di questo listino invece del catalogo generico in "Nuova prescrizione".
+      </p>
+      {error && <div className="error">{error}</div>}
+      <div className="row3">
+        <div><label>Nome listino</label><input value={form.nome} onChange={e=>setForm({...form, nome:e.target.value})} placeholder="Es. Studio Rossi" /></div>
+        <div><label>Codice (uguale al codice utente)</label><input value={form.codice} onChange={e=>setForm({...form, codice:e.target.value})} placeholder="Es. UT-0042" /></div>
+        <button className="btn" style={{height:42, alignSelf:"end"}} onClick={addListino} disabled={creating} type="button">+ Crea listino</button>
+      </div>
+      {listini.length === 0 ? (
+        <div className="empty">Nessun listino creato ancora.</div>
+      ) : (
+        <table>
+          <thead><tr><th>Nome</th><th>Codice</th><th></th></tr></thead>
+          <tbody>
+            {listini.map(l => (
+              <tr key={l.id}>
+                <td>{l.nome}</td>
+                <td className="mono">{l.codice}</td>
+                <td style={{whiteSpace:"nowrap"}}>
+                  <button className="btn secondary small" type="button" onClick={()=>setSelected(l)}>Gestisci lavorazioni</button>{" "}
+                  <button className="btn danger" type="button" onClick={()=>removeListino(l)}>Elimina</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -1203,10 +1433,12 @@ function AdminPanel({ user, catalog, reloadCatalog }) {
     <div>
       <div className="tabs" style={{marginBottom:16}}>
         <div className={"tab" + (sub==="catalogo" ? " active" : "")} onClick={()=>setSub("catalogo")}>Catalogo</div>
+        <div className={"tab" + (sub==="listini" ? " active" : "")} onClick={()=>setSub("listini")}>Listini</div>
         <div className={"tab" + (sub==="prescrizioni" ? " active" : "")} onClick={()=>setSub("prescrizioni")}>Tutte le prescrizioni</div>
         <div className={"tab" + (sub==="utenti" ? " active" : "")} onClick={()=>setSub("utenti")}>Utenti</div>
       </div>
       {sub === "catalogo" && <AdminCatalog catalog={catalog} reload={reloadCatalog} />}
+      {sub === "listini" && <AdminListini />}
       {sub === "prescrizioni" && <AdminAllPrescriptions />}
       {sub === "utenti" && <AdminUsers currentUid={user.uid} />}
     </div>
