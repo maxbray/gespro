@@ -931,9 +931,16 @@ function AdminCatalog({ catalog, reload }) {
   const categories = [...new Set(catalog.map(i => i.category))];
   const [form, setForm] = useState({ category:"", code:"", description:"" });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const addItem = async () => {
+    setError("");
     if (!form.category || !form.code || !form.description) return;
+    const codeNorm = form.code.trim().toLowerCase();
+    if (catalog.some(i => i.code.trim().toLowerCase() === codeNorm)) {
+      setError(`Il codice "${form.code}" esiste già nel catalogo. I codici devono essere univoci.`);
+      return;
+    }
     setSaving(true);
     await db.collection("catalog").add({ category: form.category, code: form.code, description: form.description });
     setForm({ category:"", code:"", description:"" });
@@ -954,7 +961,8 @@ function AdminCatalog({ catalog, reload }) {
   return (
     <div className="card">
       <h3>Catalogo dispositivi</h3>
-      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Codice prodotto e descrizione, nessun prezzo.</p>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Codice prodotto e descrizione, nessun prezzo. Ogni codice deve essere univoco.</p>
+      {error && <div className="error">{error}</div>}
       {catalog.length === 0 && (
         <div className="info">Il catalogo è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un catalogo di esempio</a>, poi modifica liberamente le voci.</div>
       )}
@@ -991,18 +999,13 @@ function parseListinoExcel(file) {
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        // Prima riga = intestazioni, si assume l'ordine: Categoria, Codice, Descrizione, Prezzo (opzionale)
+        // Prima riga = intestazioni, colonne: Codice, Prezzo (opzionale)
         const items = rows.slice(1)
-          .filter(r => r && r.length >= 2 && String(r[1] || "").trim())
+          .filter(r => r && String(r[0] || "").trim())
           .map(r => {
-            const priceRaw = r[3];
+            const priceRaw = r[1];
             const price = priceRaw !== undefined && priceRaw !== "" && !isNaN(parseFloat(priceRaw)) ? parseFloat(priceRaw) : null;
-            return {
-              category: String(r[0] || "").trim(),
-              code: String(r[1] || "").trim(),
-              description: String(r[2] || "").trim(),
-              price,
-            };
+            return { code: String(r[0] || "").trim(), price };
           });
         resolve(items);
       } catch (err) {
@@ -1014,9 +1017,10 @@ function parseListinoExcel(file) {
   });
 }
 
-function AdminListinoDetail({ listino, onBack }) {
+function AdminListinoDetail({ listino, catalog, onBack }) {
   const [lavorazioni, setLavorazioni] = useState(null);
-  const [form, setForm] = useState({ category:"", code:"", description:"", price:"" });
+  const [form, setForm] = useState({ code:"", price:"" });
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [importing, setImporting] = useState(false);
@@ -1041,14 +1045,22 @@ function AdminListinoDetail({ listino, onBack }) {
     return () => window.removeEventListener("afterprint", handler);
   }, []);
 
+  const findCatalogItem = (code) => catalog.find(c => c.code.trim().toLowerCase() === code.trim().toLowerCase());
+
   const addItem = async () => {
-    if (!form.category || !form.code || !form.description) return;
+    setFormError("");
+    if (!form.code) { setFormError("Inserisci un codice."); return; }
+    const catalogItem = findCatalogItem(form.code);
+    if (!catalogItem) { setFormError(`Il codice "${form.code}" non esiste nel catalogo generico. Aggiungilo prima lì (Amministrazione → Catalogo), poi assegnagli un prezzo qui.`); return; }
+    if (lavorazioni && lavorazioni.some(l => l.code.trim().toLowerCase() === form.code.trim().toLowerCase())) {
+      setFormError(`Il codice "${form.code}" è già presente in questo listino.`); return;
+    }
     setSaving(true);
     await db.collection("listini").doc(listino.id).collection("lavorazioni").add({
-      category: form.category, code: form.code, description: form.description,
+      category: catalogItem.category, code: catalogItem.code, description: catalogItem.description,
       price: form.price !== "" ? parseFloat(form.price) : null,
     });
-    setForm({ category:"", code:"", description:"", price:"" });
+    setForm({ code:"", price:"" });
     await load();
     setSaving(false);
   };
@@ -1070,21 +1082,37 @@ function AdminListinoDetail({ listino, onBack }) {
     if (!file) return;
     setImporting(true); setImportMsg("");
     try {
-      const items = await parseListinoExcel(file);
-      if (items.length === 0) {
-        setImportMsg("Nessuna riga valida trovata. Il file deve avere le colonne, nell'ordine: Categoria, Codice, Descrizione, Prezzo (prima riga = intestazioni).");
-        setImporting(false);
-        return;
+      const rows = await parseListinoExcel(file);
+      if (rows.length === 0) {
+        setImportMsg("Nessuna riga valida trovata. Il file deve avere 2 colonne: Codice, Prezzo (prima riga = intestazioni).");
+        setImporting(false); e.target.value = ""; return;
       }
-      for (let i = 0; i < items.length; i += 400) {
-        const batch = db.batch();
-        items.slice(i, i + 400).forEach(item => {
-          const ref = db.collection("listini").doc(listino.id).collection("lavorazioni").doc();
-          batch.set(ref, item);
-        });
-        await batch.commit();
+      const existingCodes = new Set((lavorazioni || []).map(l => l.code.trim().toLowerCase()));
+      const seenInFile = new Set();
+      const toImport = [];
+      let sconosciuti = 0, duplicati = 0;
+      rows.forEach(r => {
+        const codeNorm = r.code.trim().toLowerCase();
+        const catalogItem = findCatalogItem(r.code);
+        if (!catalogItem) { sconosciuti++; return; }
+        if (existingCodes.has(codeNorm) || seenInFile.has(codeNorm)) { duplicati++; return; }
+        seenInFile.add(codeNorm);
+        toImport.push({ category: catalogItem.category, code: catalogItem.code, description: catalogItem.description, price: r.price });
+      });
+      if (toImport.length > 0) {
+        for (let i = 0; i < toImport.length; i += 400) {
+          const batch = db.batch();
+          toImport.slice(i, i + 400).forEach(item => {
+            const ref = db.collection("listini").doc(listino.id).collection("lavorazioni").doc();
+            batch.set(ref, item);
+          });
+          await batch.commit();
+        }
       }
-      setImportMsg(`Importate ${items.length} lavorazioni.`);
+      let msg = `Importate ${toImport.length} lavorazioni.`;
+      if (sconosciuti > 0) msg += ` ${sconosciuti} righe scartate: codice non presente nel catalogo generico.`;
+      if (duplicati > 0) msg += ` ${duplicati} righe scartate: codice duplicato (già nel listino o ripetuto nel file).`;
+      setImportMsg(msg);
       await load();
     } catch (err) {
       setImportMsg("Errore nella lettura del file: " + err.message);
@@ -1109,7 +1137,7 @@ function AdminListinoDetail({ listino, onBack }) {
     setPrintData({ listino, lavorazioni: lavorazioni || [], clientHeader });
   };
 
-  const categories = lavorazioni ? [...new Set(lavorazioni.map(i => i.category))] : [];
+  const matchedPreview = form.code ? findCatalogItem(form.code) : null;
 
   return (
     <div className="card">
@@ -1119,11 +1147,11 @@ function AdminListinoDetail({ listino, onBack }) {
         <button className="btn secondary" type="button" onClick={preparePrint} disabled={!lavorazioni || lavorazioni.length===0}>Stampa listino</button>
       </div>
       <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
-        Gli utenti con codice utente <strong className="mono">{listino.codice}</strong> vedranno solo codice e descrizione di queste lavorazioni (mai il prezzo). Il prezzo è visibile solo qui, lato amministrazione, per poter stampare un listino da consegnare al cliente se richiesto.
+        Gli utenti con codice utente <strong className="mono">{listino.codice}</strong> vedranno solo codice e descrizione di queste lavorazioni (mai il prezzo). Ogni lavorazione qui deve corrispondere a un codice già esistente nel catalogo generico — categoria e descrizione vengono ereditate da lì, tu assegni solo il prezzo. Il codice non può ripetersi due volte nello stesso listino.
       </p>
 
       <div className="info">
-        <strong>Importa da Excel:</strong> il file deve avere 4 colonne nell'ordine Categoria, Codice, Descrizione, Prezzo (la colonna Prezzo è opzionale), con la prima riga di intestazioni (verrà ignorata). Le righe importate si aggiungono a quelle esistenti.
+        <strong>Importa da Excel:</strong> il file deve avere 2 colonne — Codice, Prezzo (il prezzo è opzionale) — con la prima riga di intestazioni (verrà ignorata). Le righe con un codice non presente nel catalogo generico, o già presente in questo listino, vengono scartate e segnalate.
         <div style={{marginTop:8}}>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} disabled={importing} />
         </div>
@@ -1132,15 +1160,19 @@ function AdminListinoDetail({ listino, onBack }) {
       </div>
 
       <h4 style={{marginTop:20}}>Aggiungi manualmente</h4>
-      <div className="row-auto">
-        <div><label>Categoria</label><input list="listino-cat-list" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} />
-          <datalist id="listino-cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+      {formError && <div className="error">{formError}</div>}
+      <div className="row3">
+        <div>
+          <label>Codice (dal catalogo generico)</label>
+          <input list="catalog-code-list" value={form.code} onChange={e=>setForm({...form, code:e.target.value})} placeholder="Es. PF-001" />
+          <datalist id="catalog-code-list">{catalog.map(c => <option key={c.id} value={c.code}>{c.description}</option>)}</datalist>
         </div>
-        <div><label>Codice</label><input value={form.code} onChange={e=>setForm({...form, code:e.target.value})} /></div>
-        <div><label>Descrizione</label><input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} /></div>
         <div><label>Prezzo € (opzionale)</label><input type="number" value={form.price} onChange={e=>setForm({...form, price:e.target.value})} /></div>
+        <button className="btn" style={{height:42, alignSelf:"end"}} onClick={addItem} disabled={saving} type="button">+ Aggiungi</button>
       </div>
-      <button className="btn" onClick={addItem} disabled={saving} type="button" style={{marginBottom:18}}>+ Aggiungi</button>
+      {matchedPreview && (
+        <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-10}}>{matchedPreview.category} — {matchedPreview.description}</p>
+      )}
 
       {lavorazioni === null ? <div className="empty">Caricamento...</div> : lavorazioni.length === 0 ? (
         <div className="empty">Nessuna lavorazione in questo listino ancora.</div>
@@ -1170,7 +1202,7 @@ function AdminListinoDetail({ listino, onBack }) {
   );
 }
 
-function AdminListini() {
+function AdminListini({ catalog }) {
   const [listini, setListini] = useState(null);
   const [form, setForm] = useState({ nome:"", codice:"" });
   const [creating, setCreating] = useState(false);
@@ -1203,7 +1235,7 @@ function AdminListini() {
     load();
   };
 
-  if (selected) return <AdminListinoDetail listino={selected} onBack={()=>{ setSelected(null); load(); }} />;
+  if (selected) return <AdminListinoDetail listino={selected} catalog={catalog} onBack={()=>{ setSelected(null); load(); }} />;
 
   if (listini === null) return <div className="empty">Caricamento...</div>;
   return (
@@ -1542,7 +1574,7 @@ function AdminPanel({ user, catalog, reloadCatalog }) {
         <div className={"tab" + (sub==="utenti" ? " active" : "")} onClick={()=>setSub("utenti")}>Utenti</div>
       </div>
       {sub === "catalogo" && <AdminCatalog catalog={catalog} reload={reloadCatalog} />}
-      {sub === "listini" && <AdminListini />}
+      {sub === "listini" && <AdminListini catalog={catalog} />}
       {sub === "prescrizioni" && <AdminAllPrescriptions />}
       {sub === "utenti" && <AdminUsers currentUid={user.uid} />}
     </div>
