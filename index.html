@@ -222,6 +222,23 @@ function generatePassword() {
   return out;
 }
 
+// Crea automaticamente un listino per il codice utente indicato, se non ne esiste già uno con quel codice
+async function ensureListinoForUser(codiceUtente, nome) {
+  if (!codiceUtente) return;
+  const snap = await db.collection("listini").where("codice", "==", codiceUtente).limit(1).get();
+  if (!snap.empty) return; // esiste già un listino con questo codice, non ne creo un altro
+  await db.collection("listini").add({
+    nome: nome || codiceUtente,
+    codice: codiceUtente,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+function nominativoDaAnagrafica(anagrafica) {
+  if (anagrafica.tipo === "azienda") return anagrafica.ragioneSociale || "";
+  return `${anagrafica.nome || ""} ${anagrafica.cognome || ""}`.trim();
+}
+
 async function createUserAsAdmin(email, password, role, codiceUtente, anagrafica) {
   let secondaryApp;
   try {
@@ -234,6 +251,7 @@ async function createUserAsAdmin(email, password, role, codiceUtente, anagrafica
       indirizzo: anagrafica.indirizzo || "", piva: anagrafica.piva || "", telefono: anagrafica.telefono || "", logoDataUrl: anagrafica.logoDataUrl || "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
+    await ensureListinoForUser(codiceUtente, nominativoDaAnagrafica(anagrafica));
     await secondaryAuth.signOut();
     await secondaryApp.delete();
     return { success: true };
@@ -1282,7 +1300,7 @@ function AdminListini({ catalog }) {
     <div className="card">
       <h3>Listini per cliente</h3>
       <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
-        Ogni listino ha un codice: se combacia con il "codice utente" di una persona, quella persona vedrà le lavorazioni di questo listino invece del catalogo generico in "Nuova prescrizione".
+        Da qui in poi il listino di un cliente si crea da solo quando gli assegni un codice utente (in Amministrazione → Utenti). Il modulo qui sotto serve solo per casi particolari: creare un listino "orfano" prima ancora di avere l'utente, o recuperarne uno se per qualche motivo manca.
       </p>
       {error && <div className="error">{error}</div>}
       <div className="row3">
@@ -1515,6 +1533,7 @@ function AdminUsers({ currentUid }) {
       nome: editForm.nome, cognome: editForm.cognome, ragioneSociale: editForm.ragioneSociale,
       indirizzo: editForm.indirizzo, piva: editForm.piva, telefono: editForm.telefono, logoDataUrl: editForm.logoDataUrl,
     });
+    await ensureListinoForUser(editForm.codiceUtente, nominativoDaAnagrafica(editForm));
     setSavingEdit(false);
     setEditingId(null);
     load();
