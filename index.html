@@ -118,6 +118,46 @@
     .trial-table th:nth-child(3), .trial-table td:nth-child(3){ width:22%; }
     .trial-table tbody tr{ height:25%; }
   }
+
+  /* ============ RESPONSIVE / MOBILE ============ */
+  @media (max-width: 720px){
+    .topbar{ padding:12px 16px; flex-direction:column; align-items:stretch; gap:12px; }
+    .brand{ justify-content:space-between; }
+    .tabs{ width:100%; }
+    .tab{ flex:1; text-align:center; padding:10px 8px; font-size:13px; }
+    .topbar-right{ justify-content:space-between; width:100%; }
+    .topbar-right .btn{ flex:1; }
+
+    .container{ padding:14px; }
+    .card{ padding:16px; border-radius:12px; }
+
+    .row, .row3, .row-auto, .checkbox-grid{ grid-template-columns: 1fr; }
+
+    table{ display:block; overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
+    thead, tbody, tr{ display:table; width:100%; table-layout:fixed; }
+
+    .auth-card{ width:100%; max-width:360px; padding:24px 20px; }
+
+    .tooth-btn svg{ width:20px; height:26px; }
+    .arch{ gap:3px; }
+
+    .icon-choice-group{ flex-wrap:wrap; }
+    .icon-choice{ flex:1 1 30%; }
+
+    .btn{ padding:12px 16px; }
+
+    /* i pulsanti principali (salva/stampa) si impilano a tutta larghezza */
+    .actions-row{ flex-direction:column; }
+    .actions-row .btn{ width:100%; }
+
+    h2{ font-size:20px; }
+    h3{ font-size:17px; }
+  }
+
+  @media (max-width: 400px){
+    .tab{ font-size:12px; padding:9px 4px; }
+    .brand-name{ font-size:17px; }
+  }
 </style>
 </head>
 <body>
@@ -820,7 +860,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
 
       {savedCode && <div className="success">Prescrizione salvata con codice <strong className="mono">{savedCode}</strong>.</div>}
 
-      <div style={{display:"flex", gap:12}}>
+      <div className="actions-row" style={{display:"flex", gap:12}}>
         <button className="btn" onClick={save} disabled={saving}>{saving ? "Salvataggio..." : "Salva prescrizione"}</button>
         <button className="btn secondary" onClick={doPrint} type="button">Stampa / Salva PDF</button>
       </div>
