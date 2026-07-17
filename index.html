@@ -820,6 +820,16 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
             </select>
           </div>
         </div>
+        {(() => {
+          const selectedItem = currentCategoryItems.find(i => i.code === selectedCode);
+          if (!selectedItem || (!selectedItem.note && !selectedItem.imageDataUrl)) return null;
+          return (
+            <div className="info" style={{display:"flex", gap:12, alignItems:"flex-start"}}>
+              {selectedItem.imageDataUrl && <img src={selectedItem.imageDataUrl} alt="" style={{width:70, height:70, objectFit:"cover", borderRadius:8, flexShrink:0}} />}
+              {selectedItem.note && <div>{selectedItem.note}</div>}
+            </div>
+          );
+        })()}
         <button className="btn secondary" onClick={addLine} type="button">+ Aggiungi alla prescrizione</button>
         {lines.length > 0 && (
           <div style={{marginTop:18, marginBottom:16}}>
@@ -990,9 +1000,12 @@ function PrescriptionList({ user }) {
 // ============ ADMIN: CATALOGO ============
 function AdminCatalog({ catalog, reload }) {
   const categories = [...new Set(catalog.map(i => i.category))];
-  const [form, setForm] = useState({ category:"", code:"", description:"" });
+  const [form, setForm] = useState({ category:"", code:"", description:"", note:"", imageDataUrl:"" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const addItem = async () => {
     setError("");
@@ -1003,8 +1016,11 @@ function AdminCatalog({ catalog, reload }) {
       return;
     }
     setSaving(true);
-    await db.collection("catalog").add({ category: form.category, code: form.code, description: form.description });
-    setForm({ category:"", code:"", description:"" });
+    await db.collection("catalog").add({
+      category: form.category, code: form.code, description: form.description,
+      note: form.note || "", imageDataUrl: form.imageDataUrl || "",
+    });
+    setForm({ category:"", code:"", description:"", note:"", imageDataUrl:"" });
     await reload();
     setSaving(false);
   };
@@ -1019,10 +1035,20 @@ function AdminCatalog({ catalog, reload }) {
     setSaving(false);
   };
 
+  const startEdit = (i) => { setEditingId(i.id); setEditForm({ note: i.note || "", imageDataUrl: i.imageDataUrl || "" }); };
+  const cancelEdit = () => { setEditingId(null); setEditForm(null); };
+  const saveEdit = async (id) => {
+    setSavingEdit(true);
+    await db.collection("catalog").doc(id).update({ note: editForm.note, imageDataUrl: editForm.imageDataUrl });
+    setSavingEdit(false);
+    cancelEdit();
+    await reload();
+  };
+
   return (
     <div className="card">
       <h3>Catalogo dispositivi</h3>
-      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Codice prodotto e descrizione, nessun prezzo. Ogni codice deve essere univoco.</p>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Codice prodotto e descrizione, nessun prezzo. Ogni codice deve essere univoco. Nota e immagine sono facoltative e aiutano il clinico nella scelta durante la compilazione della prescrizione.</p>
       {error && <div className="error">{error}</div>}
       {catalog.length === 0 && (
         <div className="info">Il catalogo è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un catalogo di esempio</a>, poi modifica liberamente le voci.</div>
@@ -1034,15 +1060,62 @@ function AdminCatalog({ catalog, reload }) {
         <div><label>Codice prodotto</label><input value={form.code} onChange={e=>setForm({...form, code:e.target.value})} placeholder="Es. PF-004" /></div>
         <div><label>Descrizione</label><input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} placeholder="Es. Corona in ceramica" /></div>
       </div>
+      <div className="row" style={{marginTop:0}}>
+        <div>
+          <label>Nota esplicativa (opzionale)</label>
+          <textarea value={form.note} onChange={e=>setForm({...form, note:e.target.value})} placeholder="Indicazioni cliniche, quando usarlo, differenze rispetto a dispositivi simili..." />
+        </div>
+        <div>
+          <label>Immagine (opzionale)</label>
+          <input type="file" accept="image/*" onChange={e=>handleImageFileUpload(e, dataUrl=>setForm(f=>({...f, imageDataUrl:dataUrl})))} />
+          {form.imageDataUrl && (
+            <div style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
+              <img src={form.imageDataUrl} alt="" style={{height:50, borderRadius:4, border:"1px solid var(--border)"}} />
+              <button type="button" className="btn danger" onClick={()=>setForm(f=>({...f, imageDataUrl:""}))}>Rimuovi</button>
+            </div>
+          )}
+        </div>
+      </div>
       <button className="btn" onClick={addItem} disabled={saving} type="button" style={{marginBottom:18}}>+ Aggiungi</button>
       <table>
-        <thead><tr><th>Categoria</th><th>Codice</th><th>Descrizione</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Categoria</th><th>Codice</th><th>Descrizione</th><th>Nota</th><th></th></tr></thead>
         <tbody>
           {catalog.map(i => (
-            <tr key={i.id}>
-              <td>{i.category}</td><td className="mono">{i.code}</td><td>{i.description}</td>
-              <td><button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button></td>
-            </tr>
+            <React.Fragment key={i.id}>
+              <tr>
+                <td>{i.imageDataUrl ? <img src={i.imageDataUrl} alt="" style={{height:32, width:32, objectFit:"cover", borderRadius:4}} /> : null}</td>
+                <td>{i.category}</td><td className="mono">{i.code}</td><td>{i.description}</td>
+                <td style={{maxWidth:220, fontSize:12, color:"var(--muted)"}}>{i.note ? (i.note.length > 60 ? i.note.slice(0,60)+"…" : i.note) : "—"}</td>
+                <td style={{whiteSpace:"nowrap"}}>
+                  <button className="btn secondary small" type="button" onClick={()=>editingId===i.id ? cancelEdit() : startEdit(i)}>{editingId===i.id ? "Chiudi" : "Modifica"}</button>{" "}
+                  <button className="btn danger" onClick={()=>removeItem(i.id)} type="button">Rimuovi</button>
+                </td>
+              </tr>
+              {editingId === i.id && (
+                <tr><td colSpan="6">
+                  <div className="detail-box">
+                    <div style={{marginBottom:12}}>
+                      <label>Nota esplicativa</label>
+                      <textarea value={editForm.note} onChange={e=>setEditForm({...editForm, note:e.target.value})} />
+                    </div>
+                    <div>
+                      <label>Immagine</label>
+                      <input type="file" accept="image/*" onChange={e=>handleImageFileUpload(e, dataUrl=>setEditForm(f=>({...f, imageDataUrl:dataUrl})))} />
+                      {editForm.imageDataUrl && (
+                        <div style={{marginTop:8, display:"flex", alignItems:"center", gap:10}}>
+                          <img src={editForm.imageDataUrl} alt="" style={{height:50, borderRadius:4, border:"1px solid var(--border)"}} />
+                          <button type="button" className="btn danger" onClick={()=>setEditForm(f=>({...f, imageDataUrl:""}))}>Rimuovi</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{display:"flex", gap:10, marginTop:14}}>
+                      <button className="btn" type="button" onClick={()=>saveEdit(i.id)} disabled={savingEdit}>{savingEdit ? "Salvataggio..." : "Salva modifiche"}</button>
+                      <button className="btn secondary" type="button" onClick={cancelEdit}>Annulla</button>
+                    </div>
+                  </div>
+                </td></tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
@@ -1133,6 +1206,7 @@ function AdminListinoDetail({ listino, catalog, onBack }) {
     setSaving(true);
     await db.collection("listini").doc(listino.id).collection("lavorazioni").add({
       category: catalogItem.category, code: catalogItem.code, description: catalogItem.description,
+      note: catalogItem.note || "", imageDataUrl: catalogItem.imageDataUrl || "",
       price: form.price !== "" ? parseFloat(form.price) : null,
       codiceCliente: form.codiceCliente.trim(), descrizionePersonalizzata: form.descrizionePersonalizzata.trim(),
     });
@@ -1198,6 +1272,7 @@ function AdminListinoDetail({ listino, catalog, onBack }) {
         if (ccNorm) seenCodiciClienteInFile.add(ccNorm);
         toImport.push({
           category: catalogItem.category, code: catalogItem.code, description: catalogItem.description, price: r.price,
+          note: catalogItem.note || "", imageDataUrl: catalogItem.imageDataUrl || "",
           codiceCliente: r.codiceCliente || "", descrizionePersonalizzata: r.descrizionePersonalizzata || "",
         });
       });
@@ -1497,6 +1572,20 @@ function handleLogoUpload(e, value, onChange) {
   }
   const reader = new FileReader();
   reader.onload = () => onChange({ ...value, logoDataUrl: reader.result });
+  reader.readAsDataURL(file);
+}
+
+// Helper generico: carica un'immagine e la passa come data-URL a onLoaded(dataUrl)
+function handleImageFileUpload(e, onLoaded, maxKB) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const limit = (maxKB || 700) * 1024;
+  if (file.size > limit) {
+    alert(`L'immagine è troppo grande (max ~${maxKB || 700} KB). Prova a ridurla o comprimerla prima di caricarla.`);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => onLoaded(reader.result);
   reader.readAsDataURL(file);
 }
 

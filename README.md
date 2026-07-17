@@ -118,9 +118,13 @@ Quando l'admin apre "Nuova prescrizione" vede in cima un riquadro **"Per conto d
 
 L'admin vede tutte le prescrizioni di tutti gli utenti, può aprire il **Dettaglio** di ognuna (anamnesi, materiali, impronte, colore, ecc.) e **eliminarle**. La modifica dei singoli campi di una prescrizione già salvata non è ancora implementata: se ti serve, dimmelo e la aggiungo.
 
-## 11. Catalogo dispositivi (senza prezzo)
+## 11. Catalogo dispositivi (senza prezzo, con nota e immagine)
 
 Ogni voce ha categoria, codice prodotto, descrizione — nessun prezzo, mai. Gestione da **Amministrazione → Catalogo**. Questo è il catalogo **generico** (usato da chi non ha un listino dedicato assegnato) ed è anche la fonte di verità per i codici: **il codice deve essere univoco** — l'app blocca l'aggiunta di un codice già esistente.
+
+Ogni voce può avere anche una **nota esplicativa** (testo libero: indicazioni cliniche, quando usarlo, differenze rispetto a dispositivi simili) e un'**immagine** (facoltativa, sotto ~700 KB) per aiutare il clinico a scegliere il dispositivo giusto. Quando l'utente seleziona un dispositivo in "Nuova prescrizione", se sono presenti nota e/o immagine compaiono automaticamente sotto il menu di selezione, prima di aggiungerlo alla prescrizione. Nota e immagine si possono modificare in qualsiasi momento con "Modifica" nella tabella del catalogo (categoria, codice e descrizione restano invece fissi dopo la creazione, per non disallineare i listini che li referenziano).
+
+Queste due informazioni vengono copiate automaticamente anche quando una lavorazione viene aggiunta a un listino personale (manualmente o da Excel), così restano visibili al clinico anche se sta usando un listino dedicato invece del catalogo generico.
 
 ## 12. Listini dedicati per cliente (con import da Excel, prezzo e stampa)
 
