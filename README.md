@@ -61,6 +61,11 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
     }
+
+    match /settings/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
   }
 }
 ```
@@ -142,7 +147,15 @@ Da **Amministrazione → Listini** puoi creare listini specifici — pensati per
 - **Se un utente non ha un listino corrispondente** (o il suo codice utente è vuoto, o il listino trovato non ha lavorazioni), l'app usa automaticamente il catalogo generico come prima.
 - **Eliminare un listino** cancella anche tutte le sue lavorazioni.
 
-## 13. Uso quotidiano (utente normale)
+## 13. Modalità manutenzione
+
+Da **Amministrazione → Impostazioni** puoi attivare/disattivare la modalità manutenzione, con un messaggio personalizzabile.
+
+- **Quando è attiva**: ogni utente normale che apre l'app (o che ha già una sessione aperta e ricarica la pagina) vede una schermata di manutenzione al posto dell'app, con il messaggio che hai impostato (o uno generico se lo lasci vuoto). Può comunque disconnettersi.
+- **Tu, come amministratore, non vieni mai bloccato**: continui a usare l'app normalmente (vedrai una scritta "Manutenzione attiva" accanto al logo, per ricordartelo), così puoi lavorare — es. aggiornare listini o correggere dati — e poi disattivarla quando hai finito.
+- Ricorda di disattivarla al termine dell'intervento, altrimenti gli utenti restano bloccati.
+
+## 14. Uso quotidiano (utente normale)
 
 - **Nuova prescrizione**: compila tutte le sezioni del modulo, poi "Salva prescrizione" (assegna il codice univoco) e/o "Stampa / Salva PDF".
 - **Elenco prescrizioni**: storico delle proprie prescrizioni con codice.

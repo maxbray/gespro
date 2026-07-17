@@ -1784,7 +1784,56 @@ function AdminUsers({ currentUid }) {
   );
 }
 
-function AdminPanel({ user, catalog, reloadCatalog }) {
+function AdminSettings({ settings, reloadSettings }) {
+  const [maintenanceMode, setMaintenanceMode] = useState(settings ? !!settings.maintenanceMode : false);
+  const [message, setMessage] = useState(settings && settings.maintenanceMessage ? settings.maintenanceMessage : "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setMaintenanceMode(settings ? !!settings.maintenanceMode : false);
+    setMessage(settings && settings.maintenanceMessage ? settings.maintenanceMessage : "");
+  }, [settings]);
+
+  const save = async (newMode) => {
+    setSaving(true); setSaved(false);
+    await db.collection("settings").doc("app").set({
+      maintenanceMode: newMode !== undefined ? newMode : maintenanceMode,
+      maintenanceMessage: message,
+    }, { merge: true });
+    if (newMode !== undefined) setMaintenanceMode(newMode);
+    await reloadSettings();
+    setSaving(false); setSaved(true);
+    setTimeout(()=>setSaved(false), 2500);
+  };
+
+  return (
+    <div className="card">
+      <h3>Modalità manutenzione</h3>
+      <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
+        Quando è attiva, tutti gli utenti normali vedono una schermata di manutenzione al posto dell'app. Tu, come amministratore, continui ad accedere normalmente — così puoi lavorare e poi disattivarla quando hai finito.
+      </p>
+      <div className={maintenanceMode ? "error" : "success"} style={{marginBottom:16}}>
+        Stato attuale: <strong>{maintenanceMode ? "Manutenzione ATTIVA — utenti bloccati" : "App regolarmente accessibile"}</strong>
+      </div>
+      <div style={{marginBottom:16}}>
+        <label>Messaggio mostrato agli utenti (opzionale)</label>
+        <textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Es. Stiamo aggiornando GesPro, torneremo online a breve. Grazie per la pazienza." />
+      </div>
+      <div style={{display:"flex", gap:10}}>
+        {maintenanceMode ? (
+          <button className="btn" type="button" onClick={()=>save(false)} disabled={saving}>{saving ? "Attendere..." : "Disattiva manutenzione"}</button>
+        ) : (
+          <button className="btn danger" style={{background:"var(--danger)", color:"#fff"}} type="button" onClick={()=>save(true)} disabled={saving}>{saving ? "Attendere..." : "Attiva manutenzione"}</button>
+        )}
+        <button className="btn secondary" type="button" onClick={()=>save()} disabled={saving}>Salva solo il messaggio</button>
+      </div>
+      {saved && <div className="success" style={{marginTop:14}}>Impostazioni salvate.</div>}
+    </div>
+  );
+}
+
+function AdminPanel({ user, catalog, reloadCatalog, settings, reloadSettings }) {
   const [sub, setSub] = useState("catalogo");
   return (
     <div>
@@ -1793,11 +1842,31 @@ function AdminPanel({ user, catalog, reloadCatalog }) {
         <div className={"tab" + (sub==="listini" ? " active" : "")} onClick={()=>setSub("listini")}>Listini</div>
         <div className={"tab" + (sub==="prescrizioni" ? " active" : "")} onClick={()=>setSub("prescrizioni")}>Tutte le prescrizioni</div>
         <div className={"tab" + (sub==="utenti" ? " active" : "")} onClick={()=>setSub("utenti")}>Utenti</div>
+        <div className={"tab" + (sub==="impostazioni" ? " active" : "")} onClick={()=>setSub("impostazioni")}>Impostazioni</div>
       </div>
       {sub === "catalogo" && <AdminCatalog catalog={catalog} reload={reloadCatalog} />}
       {sub === "listini" && <AdminListini catalog={catalog} />}
       {sub === "prescrizioni" && <AdminAllPrescriptions />}
       {sub === "utenti" && <AdminUsers currentUid={user.uid} />}
+      {sub === "impostazioni" && <AdminSettings settings={settings} reloadSettings={reloadSettings} />}
+    </div>
+  );
+}
+
+function MaintenanceScreen({ message }) {
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card" style={{textAlign:"center"}}>
+        <div className="brand" style={{marginBottom:24, justifyContent:"center"}}>
+          <div className="brand-mark">G</div>
+          <div className="brand-name">GesPro</div>
+        </div>
+        <h2 style={{fontSize:18}}>App in manutenzione</h2>
+        <p style={{fontSize:14, color:"var(--muted)"}}>
+          {message && message.trim() ? message : "Stiamo effettuando un intervento di manutenzione. Riprova più tardi."}
+        </p>
+        <button className="btn secondary" style={{marginTop:10}} onClick={()=>auth.signOut()}>Esci</button>
+      </div>
     </div>
   );
 }
@@ -1810,6 +1879,7 @@ function App() {
   const [catalog, setCatalog] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [showChangePw, setShowChangePw] = useState(false);
+  const [settings, setSettings] = useState(null);
 
   const loadCatalog = async () => {
     const snap = await db.collection("catalog").orderBy("category").get();
@@ -1821,6 +1891,11 @@ function App() {
     setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
+  const loadSettings = async () => {
+    const doc = await db.collection("settings").doc("app").get();
+    setSettings(doc.exists ? doc.data() : { maintenanceMode: false, maintenanceMessage: "" });
+  };
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
       setUser(u);
@@ -1829,6 +1904,7 @@ function App() {
         const prof = doc.exists ? doc.data() : { role: "user" };
         setProfile(prof);
         loadCatalog();
+        loadSettings();
         if (prof.role === "admin") loadUsersList();
       } else {
         setProfile(null);
@@ -1842,6 +1918,11 @@ function App() {
 
   const isAdmin = profile && profile.role === "admin";
 
+  if (settings === null) return <div className="empty">Caricamento...</div>;
+  if (settings.maintenanceMode && !isAdmin) {
+    return <MaintenanceScreen message={settings.maintenanceMessage} />;
+  }
+
   return (
     <div>
       <div className="topbar">
@@ -1849,6 +1930,7 @@ function App() {
           <div className="brand-mark">G</div>
           <div className="brand-name">GesPro</div>
           {isAdmin && <span className="badge">Admin</span>}
+          {isAdmin && settings.maintenanceMode && <span className="badge" style={{background:"var(--danger)"}}>Manutenzione attiva</span>}
         </div>
         <div className="tabs">
           <div className={"tab" + (tab==="new" ? " active" : "")} onClick={()=>{setTab("new"); setShowChangePw(false);}}>Nuova prescrizione</div>
@@ -1864,7 +1946,7 @@ function App() {
         {showChangePw && <ChangePassword onClose={()=>setShowChangePw(false)} />}
         {tab === "new" && <NewPrescription user={user} profile={profile} catalog={catalog} isAdmin={isAdmin} usersList={usersList} onSaved={()=>setRefreshKey(k=>k+1)} />}
         {tab === "list" && <PrescriptionList key={refreshKey} user={user} />}
-        {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} />}
+        {tab === "admin" && isAdmin && <AdminPanel user={user} catalog={catalog} reloadCatalog={loadCatalog} settings={settings} reloadSettings={loadSettings} />}
       </div>
     </div>
   );
