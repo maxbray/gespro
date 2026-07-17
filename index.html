@@ -1049,6 +1049,11 @@ function AdminCatalog({ catalog, reload }) {
   };
 
   // ---- Import massivo del catalogo da Excel, con anteprima e conferma prima di sovrascrivere ----
+  const exportCatalog = () => {
+    const rows = catalog.map(i => [i.category, i.code, i.description, i.note || ""]);
+    exportToExcel("catalogo-gespro.xlsx", ["Categoria", "Codice", "Descrizione", "Nota"], rows);
+  };
+
   const handleCatalogFileSelect = async (e) => {
     const file = e.target.files[0];
     e.target.value = "";
@@ -1123,7 +1128,13 @@ function AdminCatalog({ catalog, reload }) {
       )}
 
       <div className="info">
-        <strong>Importa catalogo completo da Excel:</strong> il file deve avere le colonne, in quest'ordine — Categoria, Codice, Descrizione, Nota (opzionale) — con la prima riga di intestazioni (verrà ignorata). Le voci con un codice già esistente nel catalogo verranno <strong>sovrascritte</strong> (categoria e descrizione aggiornate; la nota solo se il file ne contiene una), le altre verranno aggiunte come nuove. Prima di applicare qualsiasi modifica ti verrà mostrata un'anteprima da confermare.
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10}}>
+          <span><strong>Importa/esporta catalogo completo da Excel.</strong> Esporti, modifichi il file, reimporti: le voci con codice già esistente verranno sovrascritte.</span>
+          <button className="btn secondary small" type="button" onClick={exportCatalog} disabled={catalog.length===0}>Esporta catalogo (Excel)</button>
+        </div>
+        <p style={{fontSize:13, marginTop:8, marginBottom:0}}>
+          Il file deve avere le colonne, in quest'ordine — Categoria, Codice, Descrizione, Nota (opzionale) — con la prima riga di intestazioni (verrà ignorata). Le voci con un codice già esistente nel catalogo verranno <strong>sovrascritte</strong> (categoria e descrizione aggiornate; la nota solo se il file ne contiene una), le altre verranno aggiunte come nuove. Prima di applicare qualsiasi modifica ti verrà mostrata un'anteprima da confermare.
+        </p>
         <div style={{marginTop:8}}>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleCatalogFileSelect} disabled={importing || !!pendingImport} />
         </div>
@@ -1233,6 +1244,15 @@ function AdminCatalog({ catalog, reload }) {
 }
 
 // ============ ADMIN: LISTINI PER CLIENTE (con import Excel) ============
+// Genera un file Excel scaricabile a partire da intestazioni + righe
+function exportToExcel(filename, headers, rows) {
+  const data = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Foglio1");
+  XLSX.writeFile(wb, filename);
+}
+
 function parseCatalogExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1437,6 +1457,16 @@ function AdminListinoDetail({ listino, catalog, onBack }) {
     e.target.value = "";
   };
 
+  const exportListino = () => {
+    const rows = (lavorazioni || []).map(i => [
+      i.code,
+      i.price !== null && i.price !== undefined ? i.price : "",
+      i.codiceCliente || "",
+      i.descrizionePersonalizzata || "",
+    ]);
+    exportToExcel(`listino-${listino.nome.replace(/[^a-z0-9]+/gi, "-")}.xlsx`, ["Codice", "Prezzo", "Codice cliente", "Descrizione personalizzata"], rows);
+  };
+
   const preparePrint = async () => {
     // Cerca il profilo del cliente associato (stesso codice utente) per l'intestazione
     let clientHeader = { nominativo: listino.nome, indirizzo:"", piva:"", telefono:"", logoDataUrl:"" };
@@ -1460,7 +1490,10 @@ function AdminListinoDetail({ listino, catalog, onBack }) {
       <button className="link-btn" type="button" onClick={onBack} style={{padding:0, marginBottom:10}}>← Torna ai listini</button>
       <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10}}>
         <h3>Listino: {listino.nome} <span className="code-chip">{listino.codice}</span></h3>
-        <button className="btn secondary" type="button" onClick={preparePrint} disabled={!lavorazioni || lavorazioni.length===0}>Stampa listino</button>
+        <div style={{display:"flex", gap:8}}>
+          <button className="btn secondary" type="button" onClick={exportListino} disabled={!lavorazioni || lavorazioni.length===0}>Esporta (Excel)</button>
+          <button className="btn secondary" type="button" onClick={preparePrint} disabled={!lavorazioni || lavorazioni.length===0}>Stampa listino</button>
+        </div>
       </div>
       <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>
         Ogni lavorazione qui deve corrispondere a un codice già esistente nel catalogo generico — categoria e descrizione interne vengono ereditate da lì. Puoi anche assegnare un <strong>codice cliente</strong> e una <strong>descrizione personalizzata</strong>: se presenti, l'utente con questo listino le vedrà al posto dei tuoi riferimenti interni. Il codice interno non può ripetersi due volte nello stesso listino, e nemmeno il codice cliente.
