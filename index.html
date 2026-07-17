@@ -1006,6 +1006,9 @@ function AdminCatalog({ catalog, reload }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
 
   const addItem = async () => {
     setError("");
@@ -1045,6 +1048,71 @@ function AdminCatalog({ catalog, reload }) {
     await reload();
   };
 
+  // ---- Import massivo del catalogo da Excel, con anteprima e conferma prima di sovrascrivere ----
+  const handleCatalogFileSelect = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportMsg("");
+    try {
+      const rows = await parseCatalogExcel(file);
+      if (rows.length === 0) {
+        setImportMsg("Nessuna riga valida trovata. Il file deve avere le colonne: Categoria, Codice, Descrizione, Nota (opzionale), con la prima riga di intestazioni.");
+        return;
+      }
+      const byCode = new Map(catalog.map(i => [i.code.trim().toLowerCase(), i]));
+      const seenInFile = new Set();
+      const toAdd = [];
+      const toOverwrite = [];
+      let duplicatiNelFile = 0;
+      rows.forEach(r => {
+        const norm = r.code.trim().toLowerCase();
+        if (seenInFile.has(norm)) { duplicatiNelFile++; return; }
+        seenInFile.add(norm);
+        const existing = byCode.get(norm);
+        if (existing) {
+          toOverwrite.push({ id: existing.id, before: existing, after: r });
+        } else {
+          toAdd.push(r);
+        }
+      });
+      setPendingImport({ toAdd, toOverwrite, duplicatiNelFile, totale: rows.length });
+    } catch (err) {
+      setImportMsg("Errore nella lettura del file: " + err.message);
+    }
+  };
+
+  const cancelImport = () => { setPendingImport(null); };
+
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    setImporting(true);
+    const { toAdd, toOverwrite } = pendingImport;
+    const chunks = (arr, size) => arr.reduce((acc, _, i) => (i % size === 0 ? [...acc, arr.slice(i, i+size)] : acc), []);
+    for (const chunk of chunks(toAdd, 400)) {
+      const batch = db.batch();
+      chunk.forEach(item => {
+        const ref = db.collection("catalog").doc();
+        batch.set(ref, { category: item.category, code: item.code, description: item.description, note: item.note || "", imageDataUrl: "" });
+      });
+      await batch.commit();
+    }
+    for (const chunk of chunks(toOverwrite, 400)) {
+      const batch = db.batch();
+      chunk.forEach(({ id, after }) => {
+        const ref = db.collection("catalog").doc(id);
+        const update = { category: after.category, description: after.description };
+        if (after.note) update.note = after.note; // non cancella la nota esistente se il file non ne ha una
+        batch.update(ref, update);
+      });
+      await batch.commit();
+    }
+    setImportMsg(`Import completato: ${toAdd.length} nuove voci aggiunte, ${toOverwrite.length} voci esistenti sovrascritte${pendingImport.duplicatiNelFile ? `, ${pendingImport.duplicatiNelFile} righe scartate per codice duplicato nel file` : ""}.`);
+    setPendingImport(null);
+    setImporting(false);
+    await reload();
+  };
+
   return (
     <div className="card">
       <h3>Catalogo dispositivi</h3>
@@ -1053,6 +1121,47 @@ function AdminCatalog({ catalog, reload }) {
       {catalog.length === 0 && (
         <div className="info">Il catalogo è vuoto. <a style={{cursor:"pointer", fontWeight:600}} onClick={seed}>Inizializza con un catalogo di esempio</a>, poi modifica liberamente le voci.</div>
       )}
+
+      <div className="info">
+        <strong>Importa catalogo completo da Excel:</strong> il file deve avere le colonne, in quest'ordine — Categoria, Codice, Descrizione, Nota (opzionale) — con la prima riga di intestazioni (verrà ignorata). Le voci con un codice già esistente nel catalogo verranno <strong>sovrascritte</strong> (categoria e descrizione aggiornate; la nota solo se il file ne contiene una), le altre verranno aggiunte come nuove. Prima di applicare qualsiasi modifica ti verrà mostrata un'anteprima da confermare.
+        <div style={{marginTop:8}}>
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleCatalogFileSelect} disabled={importing || !!pendingImport} />
+        </div>
+        {importMsg && <div style={{marginTop:6}}>{importMsg}</div>}
+      </div>
+
+      {pendingImport && (
+        <div className="card" style={{background:"var(--bg)", marginBottom:20}}>
+          <h4>Conferma import</h4>
+          <p style={{fontSize:13}}>
+            Trovate <strong>{pendingImport.totale}</strong> righe nel file.{" "}
+            <strong>{pendingImport.toAdd.length}</strong> nuove voci verranno aggiunte,{" "}
+            <strong>{pendingImport.toOverwrite.length}</strong> voci esistenti verranno <strong>sovrascritte</strong>
+            {pendingImport.duplicatiNelFile > 0 && <> ({pendingImport.duplicatiNelFile} righe scartate per codice duplicato nel file)</>}.
+          </p>
+          {pendingImport.toOverwrite.length > 0 && (
+            <div style={{maxHeight:220, overflowY:"auto", border:"1px solid var(--border)", borderRadius:8, padding:10, marginBottom:14, background:"#fff"}}>
+              <table>
+                <thead><tr><th>Codice</th><th>Prima</th><th>Dopo</th></tr></thead>
+                <tbody>
+                  {pendingImport.toOverwrite.map(({ id, before, after }) => (
+                    <tr key={id}>
+                      <td className="mono">{before.code}</td>
+                      <td style={{fontSize:12}}>{before.category} — {before.description}</td>
+                      <td style={{fontSize:12, color:"var(--teal-dark)"}}>{after.category} — {after.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{display:"flex", gap:10}}>
+            <button className="btn" type="button" onClick={confirmImport} disabled={importing}>{importing ? "Importazione..." : "Conferma e importa"}</button>
+            <button className="btn secondary" type="button" onClick={cancelImport} disabled={importing}>Annulla</button>
+          </div>
+        </div>
+      )}
+
       <div className="row3">
         <div><label>Categoria</label><input list="cat-list" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} placeholder="Es. Protesi fissa" />
           <datalist id="cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
@@ -1124,6 +1233,35 @@ function AdminCatalog({ catalog, reload }) {
 }
 
 // ============ ADMIN: LISTINI PER CLIENTE (con import Excel) ============
+function parseCatalogExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        // Prima riga = intestazioni, colonne: Categoria, Codice, Descrizione, Nota (opzionale)
+        const items = rows.slice(1)
+          .filter(r => r && String(r[1] || "").trim())
+          .map(r => ({
+            category: String(r[0] || "").trim(),
+            code: String(r[1] || "").trim(),
+            description: String(r[2] || "").trim(),
+            note: String(r[3] || "").trim(),
+          }))
+          .filter(r => r.category && r.description);
+        resolve(items);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 function parseListinoExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
