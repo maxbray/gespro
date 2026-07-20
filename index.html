@@ -592,7 +592,8 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   const categories = [...new Set(effectiveCatalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"" });
   const [teeth, setTeeth] = useState([]);
-  const [category, setCategory] = useState(categories[0] || "");
+  const [category, setCategory] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCode, setSelectedCode] = useState("");
   const [lines, setLines] = useState([]);
   const [anamnesi, setAnamnesi] = useState(DEFAULT_ANAMNESI);
@@ -636,22 +637,30 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     return () => { cancelled = true; };
   }, [perContoDi, catalog, profile, usersList]);
 
-  useEffect(() => {
-    const items = effectiveCatalog.filter(i => i.category === category);
-    setSelectedCode(items[0] ? items[0].code : "");
-  }, [category, effectiveCatalog]);
-
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
   const currentCategoryItems = effectiveCatalog.filter(i => i.category === category);
 
-  const addLine = () => {
-    const item = effectiveCatalog.find(i => i.category === category && i.code === selectedCode);
-    if (item) setLines(l => [...l, {
+  const pushLine = (item) => {
+    setLines(l => [...l, {
       category: item.category, code: item.code, description: item.description,
       codiceCliente: item.codiceCliente || "", descrizionePersonalizzata: item.descrizionePersonalizzata || "",
     }]);
   };
+  const addLine = () => {
+    const item = effectiveCatalog.find(i => i.category === category && i.code === selectedCode);
+    if (item) pushLine(item);
+  };
   const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
+
+  const searchResults = searchTerm.trim() ? (() => {
+    const term = searchTerm.trim().toLowerCase();
+    return effectiveCatalog.filter(i =>
+      i.description.toLowerCase().includes(term) ||
+      i.code.toLowerCase().includes(term) ||
+      (i.codiceCliente && i.codiceCliente.toLowerCase().includes(term)) ||
+      (i.descrizionePersonalizzata && i.descrizionePersonalizzata.toLowerCase().includes(term))
+    );
+  })() : [];
 
   const toggleAnamnesi = (key) => {
     setAnamnesi(a => {
@@ -806,16 +815,38 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
       <div className="card">
         <h3>Dispositivo da realizzare</h3>
         {listinoAttivo && <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-6}}>Stai usando il listino dedicato "{listinoAttivo.nome}".</p>}
+
+        <label>Cerca per termine (es. "faccetta")</label>
+        <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Digita per cercare in tutte le categorie..." style={{marginBottom:searchTerm.trim() ? 10 : 16}} />
+        {searchTerm.trim() && (
+          <div style={{maxHeight:220, overflowY:"auto", border:"1px solid var(--border)", borderRadius:8, marginBottom:16}}>
+            {searchResults.length === 0 ? (
+              <div style={{padding:12, fontSize:13, color:"var(--muted)"}}>Nessun risultato per "{searchTerm}".</div>
+            ) : searchResults.map(i => (
+              <div key={i.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", borderBottom:"1px solid var(--border)"}}>
+                <div>
+                  <div style={{fontSize:13}}>{itemLabel(i)}</div>
+                  <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
+                </div>
+                <button className="btn secondary small" type="button" onClick={()=>{ pushLine(i); setSearchTerm(""); }}>+ Aggiungi</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p style={{fontSize:12, color:"var(--muted)", textTransform:"uppercase", letterSpacing:".04em", margin:"4px 0 10px"}}>Oppure sfoglia per categoria</p>
         <div className="row">
           <div>
             <label>Categoria</label>
-            <select value={category} onChange={e=>setCategory(e.target.value)}>
+            <select value={category} onChange={e=>{ setCategory(e.target.value); setSelectedCode(""); }}>
+              <option value="">-- Seleziona categoria --</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label>Dispositivo</label>
-            <select value={selectedCode} onChange={e=>setSelectedCode(e.target.value)}>
+            <select value={selectedCode} onChange={e=>setSelectedCode(e.target.value)} disabled={!category}>
+              <option value="">{category ? "-- Seleziona dispositivo --" : "-- Prima scegli una categoria --"}</option>
               {currentCategoryItems.map(i => <option key={i.id} value={i.code}>{itemLabel(i)}</option>)}
             </select>
           </div>
@@ -830,7 +861,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
             </div>
           );
         })()}
-        <button className="btn secondary" onClick={addLine} type="button">+ Aggiungi alla prescrizione</button>
+        <button className="btn secondary" onClick={addLine} type="button" disabled={!selectedCode}>+ Aggiungi alla prescrizione</button>
         {lines.length > 0 && (
           <div style={{marginTop:18, marginBottom:16}}>
             {lines.map((l, idx) => (
