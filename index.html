@@ -823,12 +823,13 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
             {searchResults.length === 0 ? (
               <div style={{padding:12, fontSize:13, color:"var(--muted)"}}>Nessun risultato per "{searchTerm}".</div>
             ) : searchResults.map(i => (
-              <div key={i.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", borderBottom:"1px solid var(--border)"}}>
+              <div key={i.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", borderBottom:"1px solid var(--border)", cursor:"pointer", background: selectedCode===i.code ? "#EAF3F2" : "transparent"}}
+                onClick={()=>{ setCategory(i.category); setSelectedCode(i.code); }}>
                 <div>
                   <div style={{fontSize:13}}>{itemLabel(i)}</div>
                   <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
                 </div>
-                <button className="btn secondary small" type="button" onClick={()=>{ pushLine(i); setSearchTerm(""); }}>+ Aggiungi</button>
+                {(i.imageDataUrl) && <img src={i.imageDataUrl} alt="" style={{width:32, height:32, objectFit:"cover", borderRadius:6, flexShrink:0}} />}
               </div>
             ))}
           </div>
@@ -852,7 +853,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
           </div>
         </div>
         {(() => {
-          const selectedItem = currentCategoryItems.find(i => i.code === selectedCode);
+          const selectedItem = effectiveCatalog.find(i => i.code === selectedCode);
           if (!selectedItem || (!selectedItem.note && !selectedItem.imageDataUrl)) return null;
           return (
             <div className="info" style={{display:"flex", gap:12, alignItems:"flex-start"}}>
