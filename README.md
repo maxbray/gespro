@@ -76,7 +76,7 @@ Ogni prescrizione riceve automaticamente al salvataggio un codice progressivo ti
 
 ## 5. Modulo prescrizione completo
 
-- **Dati paziente**: nome, cognome, data di nascita, e un **codice/sigla paziente** — per gli studi che, per tutelare la privacy, preferiscono non riportare il nome completo ma un codice interno (es. "PZ-014" o iniziali). Per salvare la prescrizione basta compilare **uno dei due**: nome+cognome, oppure solo il codice paziente. Ovunque nell'app (elenchi, dettagli, stampa) viene mostrato nome+cognome se presente, altrimenti il codice.
+- **Dati paziente**: nome, cognome, data di nascita, e un **codice/sigla paziente** — per gli studi che, per tutelare la privacy, preferiscono non riportare il nome completo ma un codice interno (es. "PZ-014" o iniziali). Per salvare la prescrizione basta compilare **almeno uno** tra nome, cognome e codice paziente — non serve indicarli tutti, né nome e cognome insieme (va bene anche solo il nome, o solo il cognome, o solo il codice). Ovunque nell'app (elenchi, dettagli, stampa) viene mostrato nome+cognome se presente, altrimenti il codice.
 
 Oltre ai dati paziente e allo schema dentale, il form comprende anche:
 

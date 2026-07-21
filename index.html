@@ -682,12 +682,12 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     setMaterialeAllegato(list => list.includes(opt) ? list.filter(x=>x!==opt) : [...list, opt]);
   };
 
-  const hasPatientIdentity = (patient.nome && patient.cognome) || patient.codicePaziente;
+  const hasPatientIdentity = patient.nome || patient.cognome || patient.codicePaziente;
   const canSave = hasPatientIdentity && lines.length > 0;
 
   const save = async () => {
     setError("");
-    if (!canSave) { setError("Compila nome+cognome oppure il codice paziente, e aggiungi almeno un dispositivo."); return; }
+    if (!canSave) { setError("Compila almeno un dato identificativo del paziente (nome, cognome o codice) e aggiungi almeno un dispositivo."); return; }
     setSaving(true);
     try {
       const code = await generatePrescriptionCode();
@@ -727,7 +727,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   };
 
   const doPrint = () => {
-    if (!canSave) { setError("Compila nome+cognome oppure il codice paziente, e aggiungi almeno un dispositivo prima di stampare."); return; }
+    if (!canSave) { setError("Compila almeno un dato identificativo del paziente (nome, cognome o codice) e aggiungi almeno un dispositivo prima di stampare."); return; }
     window.print();
   };
 
@@ -757,7 +757,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
       <div className="card">
         <h3>Dati paziente</h3>
         {error && <div className="error">{error}</div>}
-        <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Per tutelare la privacy, puoi indicare nome e cognome oppure, in alternativa, solo un codice/sigla interno allo studio — basta compilare uno dei due.</p>
+        <p style={{fontSize:13, color:"var(--muted)", marginTop:-6}}>Per tutelare la privacy, questi campi sono liberi: basta compilarne almeno uno (solo nome, solo cognome, o un codice/sigla interno allo studio) — non serve indicarli tutti.</p>
         <div className="row">
           <div><label>Nome</label><input value={patient.nome} onChange={e=>setPatient({...patient, nome:e.target.value})} /></div>
           <div><label>Cognome</label><input value={patient.cognome} onChange={e=>setPatient({...patient, cognome:e.target.value})} /></div>
