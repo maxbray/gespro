@@ -847,9 +847,12 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
                   padding:"10px 12px", borderBottom:"1px solid var(--border)", cursor:"pointer",
                   background: selectedCode===i.code ? "#EAF3F2" : "transparent",
                 }}>
-                <div>
-                  <div style={{fontSize:13, fontWeight: selectedCode===i.code ? 600 : 400}}>{itemLabel(i)}</div>
-                  <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
+                <div style={{display:"flex", alignItems:"center", gap:10}}>
+                  {i.imageDataUrl && <img src={i.imageDataUrl} alt="" style={{width:32, height:32, objectFit:"cover", borderRadius:6, flexShrink:0}} />}
+                  <div>
+                    <div style={{fontSize:13, fontWeight: selectedCode===i.code ? 600 : 400}}>{itemLabel(i)}</div>
+                    <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
+                  </div>
                 </div>
                 {selectedCode===i.code && <span style={{color:"var(--teal)", fontWeight:700}}>✓</span>}
               </div>
