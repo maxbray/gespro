@@ -638,7 +638,19 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   }, [perContoDi, catalog, profile, usersList]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
-  const currentCategoryItems = effectiveCatalog.filter(i => i.category === category);
+
+  // Un'unica lista di risultati, filtrata per categoria (se scelta) e/o termine di ricerca (se digitato)
+  const filtersActive = category !== "" || searchTerm.trim() !== "";
+  const filteredItems = filtersActive ? effectiveCatalog.filter(i => {
+    if (category && i.category !== category) return false;
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return i.description.toLowerCase().includes(term) ||
+      i.code.toLowerCase().includes(term) ||
+      (i.codiceCliente && i.codiceCliente.toLowerCase().includes(term)) ||
+      (i.descrizionePersonalizzata && i.descrizionePersonalizzata.toLowerCase().includes(term));
+  }) : [];
+  const selectedItem = effectiveCatalog.find(i => i.code === selectedCode) || null;
 
   const pushLine = (item) => {
     setLines(l => [...l, {
@@ -647,20 +659,13 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     }]);
   };
   const addLine = () => {
-    const item = effectiveCatalog.find(i => i.category === category && i.code === selectedCode);
-    if (item) pushLine(item);
+    if (selectedItem) {
+      pushLine(selectedItem);
+      setSelectedCode("");
+      setSearchTerm("");
+    }
   };
   const removeLine = (idx) => setLines(l => l.filter((_,i)=>i!==idx));
-
-  const searchResults = searchTerm.trim() ? (() => {
-    const term = searchTerm.trim().toLowerCase();
-    return effectiveCatalog.filter(i =>
-      i.description.toLowerCase().includes(term) ||
-      i.code.toLowerCase().includes(term) ||
-      (i.codiceCliente && i.codiceCliente.toLowerCase().includes(term)) ||
-      (i.descrizionePersonalizzata && i.descrizionePersonalizzata.toLowerCase().includes(term))
-    );
-  })() : [];
 
   const toggleAnamnesi = (key) => {
     setAnamnesi(a => {
@@ -816,53 +821,58 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
         <h3>Dispositivo da realizzare</h3>
         {listinoAttivo && <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-6}}>Stai usando il listino dedicato "{listinoAttivo.nome}".</p>}
 
-        <label>Cerca per termine (es. "faccetta")</label>
-        <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Digita per cercare in tutte le categorie..." style={{marginBottom:searchTerm.trim() ? 10 : 16}} />
-        {searchTerm.trim() && (
-          <div style={{maxHeight:220, overflowY:"auto", border:"1px solid var(--border)", borderRadius:8, marginBottom:16}}>
-            {searchResults.length === 0 ? (
-              <div style={{padding:12, fontSize:13, color:"var(--muted)"}}>Nessun risultato per "{searchTerm}".</div>
-            ) : searchResults.map(i => (
-              <div key={i.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", borderBottom:"1px solid var(--border)", cursor:"pointer", background: selectedCode===i.code ? "#EAF3F2" : "transparent"}}
-                onClick={()=>{ setCategory(i.category); setSelectedCode(i.code); }}>
-                <div>
-                  <div style={{fontSize:13}}>{itemLabel(i)}</div>
-                  <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
-                </div>
-                {(i.imageDataUrl) && <img src={i.imageDataUrl} alt="" style={{width:32, height:32, objectFit:"cover", borderRadius:6, flexShrink:0}} />}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <p style={{fontSize:12, color:"var(--muted)", textTransform:"uppercase", letterSpacing:".04em", margin:"4px 0 10px"}}>Oppure sfoglia per categoria</p>
         <div className="row">
           <div>
             <label>Categoria</label>
             <select value={category} onChange={e=>{ setCategory(e.target.value); setSelectedCode(""); }}>
-              <option value="">-- Seleziona categoria --</option>
+              <option value="">Tutte le categorie</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label>Dispositivo</label>
-            <select value={selectedCode} onChange={e=>setSelectedCode(e.target.value)} disabled={!category}>
-              <option value="">{category ? "-- Seleziona dispositivo --" : "-- Prima scegli una categoria --"}</option>
-              {currentCategoryItems.map(i => <option key={i.id} value={i.code}>{itemLabel(i)}</option>)}
-            </select>
+            <label>Cerca (es. "faccetta")</label>
+            <input value={searchTerm} onChange={e=>{ setSearchTerm(e.target.value); setSelectedCode(""); }} placeholder="Digita per filtrare..." />
           </div>
         </div>
-        {(() => {
-          const selectedItem = effectiveCatalog.find(i => i.code === selectedCode);
-          if (!selectedItem || (!selectedItem.note && !selectedItem.imageDataUrl)) return null;
-          return (
-            <div className="info" style={{display:"flex", gap:12, alignItems:"flex-start"}}>
+
+        {filtersActive && (
+          <div style={{maxHeight:240, overflowY:"auto", border:"1px solid var(--border)", borderRadius:8, marginBottom:16}}>
+            {filteredItems.length === 0 ? (
+              <div style={{padding:12, fontSize:13, color:"var(--muted)"}}>Nessun dispositivo trovato con questi filtri.</div>
+            ) : filteredItems.map(i => (
+              <div key={i.id}
+                onClick={()=>setSelectedCode(i.code)}
+                style={{
+                  display:"flex", justifyContent:"space-between", alignItems:"center", gap:10,
+                  padding:"10px 12px", borderBottom:"1px solid var(--border)", cursor:"pointer",
+                  background: selectedCode===i.code ? "#EAF3F2" : "transparent",
+                }}>
+                <div>
+                  <div style={{fontSize:13, fontWeight: selectedCode===i.code ? 600 : 400}}>{itemLabel(i)}</div>
+                  <div style={{fontSize:11, color:"var(--muted)"}}>{i.category}</div>
+                </div>
+                {selectedCode===i.code && <span style={{color:"var(--teal)", fontWeight:700}}>✓</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {!filtersActive && (
+          <p style={{fontSize:13, color:"var(--muted)"}}>Scegli una categoria o digita un termine di ricerca per vedere i dispositivi disponibili.</p>
+        )}
+
+        {selectedItem && (
+          <div className="info" style={{display:"flex", gap:12, alignItems:"flex-start", justifyContent:"space-between"}}>
+            <div style={{display:"flex", gap:12, alignItems:"flex-start"}}>
               {selectedItem.imageDataUrl && <img src={selectedItem.imageDataUrl} alt="" style={{width:70, height:70, objectFit:"cover", borderRadius:8, flexShrink:0}} />}
-              {selectedItem.note && <div>{selectedItem.note}</div>}
+              <div>
+                <div style={{fontWeight:600, marginBottom:2}}>{itemLabel(selectedItem)}</div>
+                {selectedItem.note && <div>{selectedItem.note}</div>}
+              </div>
             </div>
-          );
-        })()}
-        <button className="btn secondary" onClick={addLine} type="button" disabled={!selectedCode}>+ Aggiungi alla prescrizione</button>
+            <button className="btn" type="button" onClick={addLine} style={{flexShrink:0}}>+ Aggiungi</button>
+          </div>
+        )}
+
         {lines.length > 0 && (
           <div style={{marginTop:18, marginBottom:16}}>
             {lines.map((l, idx) => (

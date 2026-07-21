@@ -84,7 +84,7 @@ Oltre ai dati paziente e allo schema dentale, il form ora comprende:
 - **Materiale da utilizzare**: menu con le opzioni comuni (Lega Co-Cr, Zirconia, Resina, Ceramica, Titanio, Metallo-ceramica) o "Altro" con testo libero.
 - **Materiale allegato**: selezione multipla (radiografie, cere, modelli provvisori, fotografie, siliconi, registrazione pantografica, modelli già sviluppati, resine, arco facciale, registrazioni occlusali).
 - **Impronte**: giorno di rilevazione, disinfettante utilizzato, materiale.
-- **Selezione dispositivo**: all'apertura di una nuova prescrizione, categoria e dispositivo partono sempre vuoti — nessuna preselezione. Puoi scegliere in due modi, anche insieme: una **ricerca libera per termine** (es. digitando "faccetta" trovi tutti i dispositivi che la contengono nel nome/codice, in qualunque categoria, con un pulsante "+ Aggiungi" diretto su ogni risultato), oppure sfogliando manualmente per categoria e poi dispositivo come prima.
+- **Selezione dispositivo, un unico flusso**: all'apertura di una nuova prescrizione, categoria e ricerca partono sempre vuote — nessuna preselezione. Categoria e ricerca sono due **filtri combinabili** sulla stessa lista di risultati (non due percorsi separati): scegli una categoria per restringere l'elenco, digita un termine (es. "faccetta") per cercare per nome o codice — anche tra tutte le categorie se non ne scegli una — oppure usa entrambi insieme. Clicchi un risultato per selezionarlo (si evidenzia con un segno di spunta): sotto compare un riquadro con nome, eventuale immagine e nota esplicativa, e solo lì c'è il pulsante "+ Aggiungi" per confermarlo nella prescrizione.
 - **Colore**: colore e campionario di riferimento.
 
 ## 6. Schema dentale con icone realistiche
