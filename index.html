@@ -591,6 +591,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   const [listinoAttivo, setListinoAttivo] = useState(null);
   const categories = [...new Set(effectiveCatalog.map(i => i.category))];
   const [patient, setPatient] = useState({ nome:"", cognome:"", dataNascita:"", codicePaziente:"" });
+  const [codiceModificatoManualmente, setCodiceModificatoManualmente] = useState(false);
   const [teeth, setTeeth] = useState([]);
   const [category, setCategory] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -636,6 +637,16 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     resolveCatalog();
     return () => { cancelled = true; };
   }, [perContoDi, catalog, profile, usersList]);
+
+  // Suggerisce un codice paziente dalle iniziali quando sono compilati sia nome che cognome,
+  // ma solo finché l'utente non lo modifica di sua iniziativa
+  useEffect(() => {
+    if (codiceModificatoManualmente) return;
+    if (patient.nome.trim() && patient.cognome.trim()) {
+      const auto = `${patient.nome.trim()[0].toUpperCase()}.${patient.cognome.trim()[0].toUpperCase()}.`;
+      setPatient(p => (p.codicePaziente === auto ? p : { ...p, codicePaziente: auto }));
+    }
+  }, [patient.nome, patient.cognome, codiceModificatoManualmente]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
 
@@ -769,7 +780,10 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
           </div>
           <div>
             <label>Codice/sigla paziente (alternativa a nome e cognome)</label>
-            <input value={patient.codicePaziente} onChange={e=>setPatient({...patient, codicePaziente:e.target.value})} placeholder="Es. PZ-014 o M.R." />
+            <input value={patient.codicePaziente} onChange={e=>{ setCodiceModificatoManualmente(true); setPatient({...patient, codicePaziente:e.target.value}); }} placeholder="Es. PZ-014 o M.R." />
+            {!codiceModificatoManualmente && patient.nome.trim() && patient.cognome.trim() && (
+              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Suggerito dalle iniziali — modificalo liberamente se vuoi.</div>
+            )}
           </div>
         </div>
       </div>
