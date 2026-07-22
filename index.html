@@ -1065,18 +1065,7 @@ function PrescriptionList({ user }) {
               </tr>
               {expanded === p.id && (
                 <tr><td colSpan="5">
-                  <div className="detail-box">
-                    <div><b>Paziente:</b> {patientLabel(p.patient)}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
-                    <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
-                    <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
-                    <div><b>Denti coinvolti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
-                    <div><b>Dispositivi:</b> {p.lines.map(l=>`${l.codiceCliente || l.code} — ${l.descrizionePersonalizzata || l.description}`).join("; ")}</div>
-                    <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
-                    <div><b>Materiale:</b> {p.materiale || "—"}</div>
-                    <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
-                    <div><b>Impronte:</b> {p.impronte ? `il ${p.impronte.data || "—"}, disinfettate con ${p.impronte.disinfettateCon || "—"}, materiale ${p.impronte.materialeUtilizzato || "—"}` : "—"}</div>
-                    <div><b>Colore:</b> {p.colore || "—"} · <b>Campionario:</b> {p.campionario || "—"}</div>
-                  </div>
+                  <PrescriptionDetailBox p={p} showOwner={false} />
                 </td></tr>
               )}
             </React.Fragment>
@@ -1791,18 +1780,7 @@ function AdminAllPrescriptions() {
               </tr>
               {expanded === p.id && (
                 <tr><td colSpan="6">
-                  <div className="detail-box">
-                    <div><b>Paziente:</b> {patientLabel(p.patient)}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
-                    <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
-                    <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
-                    <div><b>Denti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
-                    <div><b>Dispositivi:</b> {p.lines.map(l=>`${l.codiceCliente || l.code} — ${l.descrizionePersonalizzata || l.description}`).join("; ")}</div>
-                    <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
-                    <div><b>Materiale:</b> {p.materiale || "—"}</div>
-                    <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
-                    <div><b>Impronte:</b> {p.impronte ? `il ${p.impronte.data || "—"}, disinfettate con ${p.impronte.disinfettateCon || "—"}, materiale ${p.impronte.materialeUtilizzato || "—"}` : "—"}</div>
-                    <div><b>Colore:</b> {p.colore || "—"} · <b>Campionario:</b> {p.campionario || "—"}</div>
-                  </div>
+                  <PrescriptionDetailBox p={p} showOwner={true} />
                 </td></tr>
               )}
             </React.Fragment>
@@ -1815,6 +1793,38 @@ function AdminAllPrescriptions() {
 }
 
 // ============ ADMIN: UTENTI ============
+function PrescriptionDetailBox({ p, showOwner }) {
+  const compilataDaAltri = p.createdByEmail && p.ownerEmail && p.createdByEmail !== p.ownerEmail;
+  return (
+    <div className="detail-box">
+      <div><b>Codice prescrizione:</b> {p.code || "—"}</div>
+      {showOwner && <div><b>Utente:</b> {p.ownerEmail || "—"}</div>}
+      {compilataDaAltri && <div><b>Compilata da:</b> {p.createdByEmail} (per conto di {p.ownerEmail})</div>}
+      <div><b>Paziente:</b> {(p.patient.nome || p.patient.cognome) ? `${p.patient.nome || ""} ${p.patient.cognome || ""}`.trim() : "—"}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
+      <div><b>Codice paziente:</b> {p.patient.codicePaziente || "—"}</div>
+      <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
+      <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
+      <div><b>Denti coinvolti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
+      <div><b>Dispositivi:</b></div>
+      {p.lines && p.lines.length > 0 ? (
+        <ul style={{margin:"2px 0 8px 18px", padding:0}}>
+          {p.lines.map((l, idx) => (
+            <li key={idx}>
+              {l.category ? `${l.category} — ` : ""}{l.codiceCliente || l.code}
+              {l.codiceCliente ? <span style={{color:"var(--muted)"}}> (rif. int. {l.code})</span> : ""} — {l.descrizionePersonalizzata || l.description}
+            </li>
+          ))}
+        </ul>
+      ) : <div style={{marginBottom:8}}>—</div>}
+      <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
+      <div><b>Materiale:</b> {p.materiale || "—"}</div>
+      <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
+      <div><b>Impronte:</b> {p.impronte ? `il ${p.impronte.data || "—"}, disinfettate con ${p.impronte.disinfettateCon || "—"}, materiale ${p.impronte.materialeUtilizzato || "—"}` : "—"}</div>
+      <div><b>Colore:</b> {p.colore || "—"} · <b>Campionario:</b> {p.campionario || "—"}</div>
+    </div>
+  );
+}
+
 function patientLabel(p) {
   if (!p) return "—";
   if (p.nome || p.cognome) return `${p.nome || ""} ${p.cognome || ""}`.trim();

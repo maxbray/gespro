@@ -123,7 +123,7 @@ Il logo si carica dal profilo utente (Amministrazione → Utenti → crea o modi
 
 Quando l'admin apre "Nuova prescrizione" vede in cima un riquadro **"Per conto di"**, con un menu a tendina per scegliere un utente registrato invece di "Me stesso". La prescrizione viene salvata con quell'utente come proprietario: comparirà nel suo elenco personale, non in quello dell'admin, esattamente come se l'avesse compilata lui.
 
-**Nota tecnica**: non è un vero login come quell'utente (impersonificazione) — quella richiederebbe un backend (Cloud Functions) per generare un token di accesso a suo nome, cosa che qui non serve: basta assegnare correttamente il proprietario della prescrizione al salvataggio. Il campo `createdBy` nel database tiene comunque traccia di chi l'ha materialmente compilata (l'admin), per trasparenza.
+**Nota tecnica**: non è un vero login come quell'utente (impersonificazione) — quella richiederebbe un backend (Cloud Functions) per generare un token di accesso a suo nome, cosa che qui non serve: basta assegnare correttamente il proprietario della prescrizione al salvataggio. Il campo `createdBy` nel database tiene traccia di chi l'ha materialmente compilata (l'admin): quando è diverso dal proprietario, compare come riga **"Compilata da"** nel dettaglio della prescrizione, visibile all'admin in "Tutte le prescrizioni".
 
 ## 10. Gestione prescrizioni (pannello Admin → Tutte le prescrizioni)
 
