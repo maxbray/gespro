@@ -561,7 +561,12 @@ function PrintablePrescription({ p }) {
           <div className="print-section">
             <h5>Dispositivo richiesto</h5>
             <ul style={{margin:0, paddingLeft:16}}>
-              {lines.map((l, idx) => (<li key={idx}>{l.codiceCliente || l.code} — {l.descrizionePersonalizzata || l.description}</li>))}
+              {lines.map((l, idx) => (
+                <li key={idx}>
+                  {l.teeth && l.teeth.length > 0 ? <strong>Denti {l.teeth.join(", ")}: </strong> : null}
+                  {l.codiceCliente || l.code} — {l.descrizionePersonalizzata || l.description}
+                </li>
+              ))}
             </ul>
             {p.descrizioneDispositivo && <div style={{marginTop:4}}>{p.descrizioneDispositivo}</div>}
           </div>
@@ -689,9 +694,11 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
 
   const pushLine = (item) => {
     setLines(l => [...l, {
+      teeth: [...teeth],
       category: item.category, code: item.code, description: item.description,
       codiceCliente: item.codiceCliente || "", descrizionePersonalizzata: item.descrizionePersonalizzata || "",
     }]);
+    setTeeth([]);
   };
   const addLine = () => {
     if (selectedItem) {
@@ -737,13 +744,14 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
         telefono: ownerProfile.telefono || "",
         logoDataUrl: ownerProfile.logoDataUrl || "",
       };
+      const allTeeth = [...new Set(lines.flatMap(l => l.teeth || []))].sort((a,b)=>a-b);
       await db.collection("prescriptions").add({
         code,
         ownerId: targetUser ? targetUser.id : user.uid,
         ownerEmail: targetUser ? targetUser.email : user.email,
         createdBy: user.uid, createdByEmail: user.email, // traccia chi ha materialmente compilato la prescrizione
         clientHeader,
-        patient, teeth, lines,
+        patient, teeth: allTeeth, lines,
         anamnesi,
         altreInfo: { eta, sesso, formaViso },
         descrizioneDispositivo,
@@ -858,14 +866,16 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
       </div>
 
       <div className="card">
-        <h3>Schema dentale</h3>
-        <p style={{fontSize:13, color:"var(--muted)", marginTop:0}}>Seleziona i denti coinvolti (numerazione FDI/ISO).</p>
+        <h3>Dispositivi per dente</h3>
+        <p style={{fontSize:13, color:"var(--muted)", marginTop:0}}>
+          Seleziona sullo schema i denti coinvolti, poi scegli il dispositivo da abbinare loro e clicca "+ Aggiungi". Ripeti per ogni gruppo di denti con un dispositivo diverso (es. provvisorio in resina sui denti 21-22, poi corona in zirconio sui denti 23-24).
+        </p>
+        <p style={{fontSize:12, fontWeight:600, color:"var(--muted)", textTransform:"uppercase", letterSpacing:".04em", marginBottom:6}}>1. Denti coinvolti in questo dispositivo</p>
         <DentalChart selected={teeth} onToggle={toggleTooth} />
-      </div>
+        {teeth.length === 0 && <p style={{fontSize:12, color:"var(--muted)", textAlign:"center", marginTop:8}}>Nessun dente selezionato — puoi comunque aggiungere un dispositivo non riferito a denti specifici (es. una protesi totale).</p>}
 
-      <div className="card">
-        <h3>Dispositivo da realizzare</h3>
-        {listinoAttivo && <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-6}}>Stai usando il listino dedicato "{listinoAttivo.nome}".</p>}
+        <p style={{fontSize:12, fontWeight:600, color:"var(--muted)", textTransform:"uppercase", letterSpacing:".04em", margin:"20px 0 6px"}}>2. Dispositivo da abbinare{teeth.length > 0 ? ` ai denti ${teeth.join(", ")}` : ""}</p>
+        {listinoAttivo && <p style={{fontSize:13, color:"var(--teal-dark)", marginTop:-2}}>Stai usando il listino dedicato "{listinoAttivo.nome}".</p>}
 
         <div className="row">
           <div>
@@ -915,10 +925,11 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
               {selectedItem.imageDataUrl && <img src={selectedItem.imageDataUrl} alt="" style={{width:70, height:70, objectFit:"cover", borderRadius:8, flexShrink:0}} />}
               <div>
                 <div style={{fontWeight:600, marginBottom:2}}>{itemLabel(selectedItem)}</div>
+                {teeth.length > 0 && <div style={{fontSize:12, color:"var(--teal-dark)"}}>Denti: {teeth.join(", ")}</div>}
                 {selectedItem.note && <div>{selectedItem.note}</div>}
               </div>
             </div>
-            <button className="btn" type="button" onClick={addLine} style={{flexShrink:0}}>+ Aggiungi</button>
+            <button className="btn" type="button" onClick={addLine} style={{flexShrink:0}}>+ Aggiungi{teeth.length > 0 ? ` (denti ${teeth.join(", ")})` : ""}</button>
           </div>
         )}
 
@@ -926,6 +937,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
           <div style={{marginTop:18, marginBottom:16}}>
             {lines.map((l, idx) => (
               <span key={idx} className="device-tag">
+                {l.teeth && l.teeth.length > 0 && <span className="code-chip" style={{background:"var(--teal)", color:"#fff"}}>{l.teeth.join(",")}</span>}
                 <span className="code-chip">{l.codiceCliente || l.code}</span>{l.descrizionePersonalizzata || l.description}
                 <span style={{marginLeft:8, cursor:"pointer", fontWeight:700}} onClick={()=>removeLine(idx)}>×</span>
               </span>
@@ -1002,7 +1014,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
             logoDataUrl: ownerProfile.logoDataUrl || "",
           };
         })(),
-        patient, teeth, lines,
+        patient, teeth: [...new Set(lines.flatMap(l => l.teeth || []))].sort((a,b)=>a-b), lines,
         anamnesi,
         altreInfo: { eta, sesso, formaViso },
         descrizioneDispositivo,
@@ -1810,6 +1822,7 @@ function PrescriptionDetailBox({ p, showOwner }) {
         <ul style={{margin:"2px 0 8px 18px", padding:0}}>
           {p.lines.map((l, idx) => (
             <li key={idx}>
+              {l.teeth && l.teeth.length > 0 ? <strong>Denti {l.teeth.join(", ")}: </strong> : null}
               {l.category ? `${l.category} — ` : ""}{l.codiceCliente || l.code}
               {l.codiceCliente ? <span style={{color:"var(--muted)"}}> (rif. int. {l.code})</span> : ""} — {l.descrizionePersonalizzata || l.description}
             </li>

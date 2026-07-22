@@ -92,9 +92,13 @@ Oltre ai dati paziente e allo schema dentale, il form comprende anche:
 - **Selezione dispositivo, un unico flusso**: all'apertura di una nuova prescrizione, categoria e ricerca partono sempre vuote — nessuna preselezione. Categoria e ricerca sono due **filtri combinabili** sulla stessa lista di risultati (non due percorsi separati): scegli una categoria per restringere l'elenco, digita un termine (es. "faccetta") per cercare per nome o codice — anche tra tutte le categorie se non ne scegli una — oppure usa entrambi insieme. Clicchi un risultato per selezionarlo (si evidenzia con un segno di spunta): sotto compare un riquadro con nome, eventuale immagine e nota esplicativa, e solo lì c'è il pulsante "+ Aggiungi" per confermarlo nella prescrizione.
 - **Colore**: colore e campionario di riferimento.
 
-## 6. Schema dentale con icone realistiche
+## 6. Schema dentale abbinato al dispositivo, per gruppi
 
-Le icone cambiano forma in base al tipo di dente secondo la numerazione FDI/ISO: incisivo, canino, premolare, molare — con legenda sotto lo schema.
+Le icone dei denti cambiano forma in base al tipo secondo la numerazione FDI/ISO: incisivo, canino, premolare, molare — con legenda sotto lo schema.
+
+Il flusso "Dispositivi per dente" funziona così: **1)** clicchi sullo schema i denti coinvolti in quel dispositivo (es. 21, 22); **2)** scegli il dispositivo da abbinare loro (per categoria, ricerca, o entrambi); **3)** clicchi "+ Aggiungi" — il dispositivo viene aggiunto insieme ai denti selezionati in quel momento, poi lo schema si azzera per il gruppo successivo. Ripeti per ogni combinazione diversa: es. provvisorio in resina sui denti 21-22, poi corona in zirconio sui denti 23-24 — ogni riga della prescrizione porta con sé i propri denti, non un elenco generico. Puoi anche aggiungere un dispositivo senza selezionare denti (utile per protesi non riferite a denti specifici, come una protesi totale).
+
+Il dettaglio, la stampa e l'elenco riportano sempre, per ogni dispositivo, i denti a cui è abbinato.
 
 ## 7. Stampa PDF a due colonne, con intestazione del cliente
 
