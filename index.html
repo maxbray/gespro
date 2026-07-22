@@ -1792,9 +1792,11 @@ function AdminAllPrescriptions() {
               {expanded === p.id && (
                 <tr><td colSpan="6">
                   <div className="detail-box">
+                    <div><b>Paziente:</b> {patientLabel(p.patient)}{p.patient.dataNascita ? " — nato/a il " + new Date(p.patient.dataNascita).toLocaleDateString("it-IT") : ""}</div>
                     <div><b>Anamnesi:</b> {p.anamnesi ? (p.anamnesi.nullaDaSegnalare ? "Nulla da segnalare" : (ANAMNESI_OPTIONS.filter(o=>p.anamnesi[o.key]).map(o=>o.label).join(", ") + (p.anamnesi.note ? " — " + p.anamnesi.note : ""))) : "—"}</div>
                     <div><b>Età/Sesso/Viso:</b> {p.altreInfo ? `${p.altreInfo.eta || "—"} / ${p.altreInfo.sesso || "—"} / ${p.altreInfo.formaViso || "—"}` : "—"}</div>
                     <div><b>Denti:</b> {p.teeth && p.teeth.length ? p.teeth.join(", ") : "—"}</div>
+                    <div><b>Dispositivi:</b> {p.lines.map(l=>`${l.codiceCliente || l.code} — ${l.descrizionePersonalizzata || l.description}`).join("; ")}</div>
                     <div><b>Descrizione dispositivo:</b> {p.descrizioneDispositivo || "—"}</div>
                     <div><b>Materiale:</b> {p.materiale || "—"}</div>
                     <div><b>Materiale allegato:</b> {p.materialeAllegato && p.materialeAllegato.length ? p.materialeAllegato.join(", ") : "—"}</div>
