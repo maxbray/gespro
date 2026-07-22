@@ -77,7 +77,9 @@ Ogni prescrizione riceve automaticamente al salvataggio un codice progressivo ti
 ## 5. Modulo prescrizione completo
 
 - **Dati paziente**: nome, cognome, data di nascita, e un **codice/sigla paziente** — per gli studi che, per tutelare la privacy, preferiscono non riportare il nome completo ma un codice interno (es. "PZ-014" o iniziali). Per salvare la prescrizione basta compilare **almeno uno** tra nome, cognome e codice paziente — non serve indicarli tutti, né nome e cognome insieme (va bene anche solo il nome, o solo il cognome, o solo il codice). Ovunque nell'app (elenchi, dettagli, stampa) viene mostrato nome+cognome se presente, altrimenti il codice.
-  Se si compilano **sia** nome che cognome, il codice paziente si autocompila con le iniziali (es. "M.R.") come suggerimento — resta comunque liberamente modificabile: appena l'utente lo tocca a mano, l'app smette di sovrascriverlo automaticamente.
+  Se si compilano **sia** nome che cognome, il codice paziente si autocompila con un suggerimento tipo **"MAR ROS"** (prime 3 lettere di nome e cognome, maiuscole) — resta comunque liberamente modificabile: appena l'utente lo tocca a mano, l'app smette di sovrascriverlo automaticamente. Prima di proporlo, l'app verifica tra le prescrizioni già salvate (dello stesso utente/listino) che quel codice non sia già in uso: se lo è, aggiunge un numero progressivo ("MAR ROS 1", "MAR ROS 2", ...) finché non ne trova uno libero.
+
+  **Nota tecnica**: questo controllo usa una query Firestore su due campi (`ownerId` e `patient.codicePaziente`). Se al primo utilizzo il browser mostra un errore in console che chiede di creare un indice, apri il link che Firebase fornisce nell'errore stesso: crea l'indice in un clic e da quel momento la verifica funziona regolarmente (senza bloccare comunque la possibilità di scrivere il codice a mano).
 
 Oltre ai dati paziente e allo schema dentale, il form comprende anche:
 

@@ -262,6 +262,23 @@ async function createUserAsAdmin(email, password, role, codiceUtente, anagrafica
 }
 
 // Genera un codice prescrizione univoco e progressivo tipo RX-2026-0001, tramite contatore transazionale
+// Genera un codice paziente tipo "MAR ROS" dalle prime 3 lettere di nome e cognome, verificando
+// che non sia già usato tra le prescrizioni dello stesso proprietario; in caso di conflitto aggiunge un numero progressivo
+async function generateUniquePatientCode(nome, cognome, ownerId) {
+  const base = `${nome.trim().slice(0, 3).toUpperCase()} ${cognome.trim().slice(0, 3).toUpperCase()}`;
+  let candidate = base;
+  let n = 0;
+  while (true) {
+    const snap = await db.collection("prescriptions")
+      .where("ownerId", "==", ownerId)
+      .where("patient.codicePaziente", "==", candidate)
+      .limit(1).get();
+    if (snap.empty) return candidate;
+    n++;
+    candidate = `${base} ${n}`;
+  }
+}
+
 async function generatePrescriptionCode() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc("prescriptions_" + year);
@@ -638,15 +655,22 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     return () => { cancelled = true; };
   }, [perContoDi, catalog, profile, usersList]);
 
-  // Suggerisce un codice paziente dalle iniziali quando sono compilati sia nome che cognome,
-  // ma solo finché l'utente non lo modifica di sua iniziativa
+  // Suggerisce un codice paziente (es. "MAR ROS") quando sono compilati sia nome che cognome,
+  // verificando che non sia già in uso; l'utente può comunque modificarlo liberamente
   useEffect(() => {
     if (codiceModificatoManualmente) return;
-    if (patient.nome.trim() && patient.cognome.trim()) {
-      const auto = `${patient.nome.trim()[0].toUpperCase()}.${patient.cognome.trim()[0].toUpperCase()}.`;
-      setPatient(p => (p.codicePaziente === auto ? p : { ...p, codicePaziente: auto }));
-    }
-  }, [patient.nome, patient.cognome, codiceModificatoManualmente]);
+    if (!patient.nome.trim() || !patient.cognome.trim()) return;
+    let cancelled = false;
+    const targetUser = perContoDi ? usersList.find(u => u.id === perContoDi) : null;
+    const ownerId = targetUser ? targetUser.id : user.uid;
+    const t = setTimeout(async () => {
+      try {
+        const code = await generateUniquePatientCode(patient.nome, patient.cognome, ownerId);
+        if (!cancelled) setPatient(p => (p.codicePaziente === code ? p : { ...p, codicePaziente: code }));
+      } catch (err) { /* se la verifica fallisce, l'utente può sempre inserire il codice a mano */ }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [patient.nome, patient.cognome, codiceModificatoManualmente, perContoDi, usersList, user.uid]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
 
@@ -780,9 +804,9 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
           </div>
           <div>
             <label>Codice/sigla paziente (alternativa a nome e cognome)</label>
-            <input value={patient.codicePaziente} onChange={e=>{ setCodiceModificatoManualmente(true); setPatient({...patient, codicePaziente:e.target.value}); }} placeholder="Es. PZ-014 o M.R." />
+            <input value={patient.codicePaziente} onChange={e=>{ setCodiceModificatoManualmente(true); setPatient({...patient, codicePaziente:e.target.value}); }} placeholder="Es. PZ-014 o MAR ROS" />
             {!codiceModificatoManualmente && patient.nome.trim() && patient.cognome.trim() && (
-              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Suggerito dalle iniziali — modificalo liberamente se vuoi.</div>
+              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Suggerito da nome e cognome, verificato per non duplicare un codice già usato — modificalo liberamente se vuoi.</div>
             )}
           </div>
         </div>
