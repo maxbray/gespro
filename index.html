@@ -642,6 +642,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   const [lines, setLines] = useState([]);
   const [anamnesi, setAnamnesi] = useState(DEFAULT_ANAMNESI);
   const [eta, setEta] = useState("");
+  const [etaModificataManualmente, setEtaModificataManualmente] = useState(false);
   const [sesso, setSesso] = useState("");
   const [formaViso, setFormaViso] = useState("");
   const [descrizioneDispositivo, setDescrizioneDispositivo] = useState("");
@@ -697,6 +698,20 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     }, 500);
     return () => { cancelled = true; clearTimeout(t); };
   }, [patient.nome, patient.cognome, codiceModificatoManualmente, perContoDi, usersList, user.uid]);
+
+  // Calcola automaticamente l'età dalla data di nascita, finché l'utente non la modifica di sua iniziativa
+  useEffect(() => {
+    if (etaModificataManualmente) return;
+    if (!patient.dataNascita) return;
+    const nascita = new Date(patient.dataNascita);
+    if (isNaN(nascita.getTime())) return;
+    const oggi = new Date();
+    let calcolata = oggi.getFullYear() - nascita.getFullYear();
+    const meseGiornoNonRaggiunto = (oggi.getMonth() < nascita.getMonth()) ||
+      (oggi.getMonth() === nascita.getMonth() && oggi.getDate() < nascita.getDate());
+    if (meseGiornoNonRaggiunto) calcolata--;
+    if (calcolata >= 0) setEta(String(calcolata));
+  }, [patient.dataNascita, etaModificataManualmente]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
 
@@ -866,7 +881,13 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
       <div className="card">
         <h3>Altre informazioni</h3>
         <div className="row-auto">
-          <div><label>Età</label><input type="number" min="0" value={eta} onChange={e=>setEta(e.target.value)} /></div>
+          <div>
+            <label>Età</label>
+            <input type="number" min="0" value={eta} onChange={e=>{ setEtaModificataManualmente(true); setEta(e.target.value); }} />
+            {!etaModificataManualmente && patient.dataNascita && (
+              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Calcolata dalla data di nascita — modificala liberamente se vuoi.</div>
+            )}
+          </div>
           <div>
             <label>Sesso</label>
             <div style={{display:"flex", gap:8}}>
