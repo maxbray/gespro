@@ -84,7 +84,7 @@ Ogni prescrizione riceve automaticamente al salvataggio un codice progressivo ti
 Oltre ai dati paziente e allo schema dentale, il form comprende anche:
 
 - **Anamnesi**: "Nulla da segnalare" selezionato di default; selezionando una o più voci specifiche (allergie, disfunzioni articolari, altri dispositivi, handicap psicomotori, bruxismo, malattie infettive, altro) compare un campo di testo libero per i dettagli.
-- **Altre informazioni**: età, sesso, forma del viso (quadrato/tondo/triangolare, con icone). Se compili la data di nascita del paziente, l'età si calcola da sola — resta comunque modificabile a mano: appena la tocchi, l'app smette di ricalcolarla automaticamente.
+- **Altre informazioni**: età, sesso, forma del viso (quadrato/tondo/triangolare, con icone). Se compili la data di nascita del paziente, l'età si calcola da sola e il campo si **blocca** (non modificabile a mano, per evitare incoerenze tra le due). Se invece la data di nascita non è compilata, il campo età resta libero e modificabile normalmente.
 - **Descrizione del dispositivo**: testo libero oltre alla selezione dal catalogo.
 - **Materiale da utilizzare**: menu con le opzioni comuni (Lega Co-Cr, Zirconia, Resina, Ceramica, Titanio, Metallo-ceramica) o "Altro" con testo libero.
 - **Materiale allegato**: selezione multipla (radiografie, cere, modelli provvisori, fotografie, siliconi, registrazione pantografica, modelli già sviluppati, resine, arco facciale, registrazioni occlusali).

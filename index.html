@@ -55,6 +55,7 @@
   input, select, textarea{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:9px; font-size:14px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); transition:border-color .15s, box-shadow .15s; }
   textarea{ resize:vertical; min-height:70px; }
   input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-tint); }
+  input:disabled, select:disabled, textarea:disabled{ background:var(--bg); color:var(--muted); cursor:not-allowed; }
   .row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
   .row3{ display:grid; grid-template-columns:1fr 2fr auto; gap:16px; margin-bottom:16px; align-items:end; }
   .row-auto{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px; margin-bottom:16px; }
@@ -642,7 +643,6 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
   const [lines, setLines] = useState([]);
   const [anamnesi, setAnamnesi] = useState(DEFAULT_ANAMNESI);
   const [eta, setEta] = useState("");
-  const [etaModificataManualmente, setEtaModificataManualmente] = useState(false);
   const [sesso, setSesso] = useState("");
   const [formaViso, setFormaViso] = useState("");
   const [descrizioneDispositivo, setDescrizioneDispositivo] = useState("");
@@ -699,9 +699,8 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
     return () => { cancelled = true; clearTimeout(t); };
   }, [patient.nome, patient.cognome, codiceModificatoManualmente, perContoDi, usersList, user.uid]);
 
-  // Calcola automaticamente l'età dalla data di nascita, finché l'utente non la modifica di sua iniziativa
+  // Calcola sempre l'età dalla data di nascita quando presente (il campo età si blocca in quel caso)
   useEffect(() => {
-    if (etaModificataManualmente) return;
     if (!patient.dataNascita) return;
     const nascita = new Date(patient.dataNascita);
     if (isNaN(nascita.getTime())) return;
@@ -711,7 +710,7 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
       (oggi.getMonth() === nascita.getMonth() && oggi.getDate() < nascita.getDate());
     if (meseGiornoNonRaggiunto) calcolata--;
     if (calcolata >= 0) setEta(String(calcolata));
-  }, [patient.dataNascita, etaModificataManualmente]);
+  }, [patient.dataNascita]);
 
   const toggleTooth = (n) => setTeeth(t => t.includes(n) ? t.filter(x=>x!==n) : [...t, n].sort((a,b)=>a-b));
 
@@ -883,9 +882,9 @@ function NewPrescription({ user, profile, catalog, onSaved, isAdmin, usersList }
         <div className="row-auto">
           <div>
             <label>Età</label>
-            <input type="number" min="0" value={eta} onChange={e=>{ setEtaModificataManualmente(true); setEta(e.target.value); }} />
-            {!etaModificataManualmente && patient.dataNascita && (
-              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Calcolata dalla data di nascita — modificala liberamente se vuoi.</div>
+            <input type="number" min="0" value={eta} onChange={e=>setEta(e.target.value)} disabled={!!patient.dataNascita} />
+            {patient.dataNascita && (
+              <div style={{fontSize:11, color:"var(--muted)", marginTop:4}}>Calcolata automaticamente dalla data di nascita.</div>
             )}
           </div>
           <div>
