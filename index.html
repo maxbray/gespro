@@ -2217,18 +2217,33 @@ function App() {
   const [settings, setSettings] = useState(null);
 
   const loadCatalog = async () => {
-    const snap = await db.collection("catalog").orderBy("category").get();
-    setCatalog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    try {
+      const snap = await db.collection("catalog").orderBy("category").get();
+      setCatalog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Impossibile leggere il catalogo:", err.message);
+    }
   };
 
   const loadUsersList = async () => {
-    const snap = await db.collection("users").get();
-    setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    try {
+      const snap = await db.collection("users").get();
+      setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Impossibile leggere gli utenti:", err.message);
+    }
   };
 
   const loadSettings = async () => {
-    const doc = await db.collection("settings").doc("app").get();
-    setSettings(doc.exists ? doc.data() : { maintenanceMode: false, maintenanceMessage: "" });
+    try {
+      const doc = await db.collection("settings").doc("app").get();
+      setSettings(doc.exists ? doc.data() : { maintenanceMode: false, maintenanceMessage: "" });
+    } catch (err) {
+      // Se la lettura fallisce (es. regole Firestore non ancora aggiornate), non blocco l'app:
+      // procedo come se la manutenzione non fosse attiva.
+      console.error("Impossibile leggere le impostazioni:", err.message);
+      setSettings({ maintenanceMode: false, maintenanceMessage: "" });
+    }
   };
 
   useEffect(() => {
